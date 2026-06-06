@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/batch.dart';
 import '../providers/batch_provider.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class BatchFormPage extends ConsumerStatefulWidget {
   final Batch? existingBatch;
@@ -50,7 +51,7 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
           : (availableTypes.isNotEmpty ? availableTypes.first : '');
           
       _initialCountController.text = widget.existingBatch!.initialCount.toString();
-      _initialCapitalController.text = widget.existingBatch!.initialCapital.toStringAsFixed(0);
+      _initialCapitalController.text = NumberFormat.decimalPattern('id').format(widget.existingBatch!.initialCapital);
       _selectedDate = widget.existingBatch!.startDate;
       _isActive = widget.existingBatch!.isActive;
     } else {
@@ -131,7 +132,7 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
         initialCount: int.parse(_initialCountController.text),
         currentCount: widget.existingBatch?.currentCount ?? int.parse(_initialCountController.text),
         startDate: _selectedDate,
-        initialCapital: double.tryParse(_initialCapitalController.text) ?? 0.0,
+        initialCapital: double.tryParse(_initialCapitalController.text.replaceAll('.', '')) ?? 0.0,
         isActive: _isActive,
       );
 
@@ -261,17 +262,18 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
                   },
                 ),
                 const SizedBox(height: 18),
-                TextFormField(
+                 TextFormField(
                   controller: _initialCapitalController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Modal Awal (Rp)',
                     prefixIcon: Icon(Icons.payments_outlined),
-                    hintText: 'Contoh: 5000000',
+                    hintText: 'Contoh: 5.000.000',
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Wajib diisi';
-                    if (double.tryParse(value) == null) return 'Harus angka';
+                    if (double.tryParse(value.replaceAll('.', '')) == null) return 'Harus angka';
                     return null;
                   },
                 ),

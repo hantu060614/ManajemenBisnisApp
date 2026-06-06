@@ -36,12 +36,11 @@ final allDailyLogsProvider = FutureProvider<List<DailyLog>>((ref) async {
 });
 
 class BatchNotifier extends AsyncNotifier<List<Batch>> {
-  late final BatchRepository _repository;
+  BatchRepository get _repository => ref.read(batchRepositoryProvider);
 
   @override
   Future<List<Batch>> build() async {
     final authState = ref.watch(authProvider);
-    _repository = ref.watch(batchRepositoryProvider);
     if (!authState.isAuthenticated || authState.userId == null) {
       return [];
     }

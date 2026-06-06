@@ -11,11 +11,10 @@ final cashflowProvider = AsyncNotifierProvider<CashflowNotifier, List<Cashflow>>
 });
 
 class CashflowNotifier extends AsyncNotifier<List<Cashflow>> {
-  late final CashflowRepository _repository;
+  CashflowRepository get _repository => ref.read(cashflowRepositoryProvider);
 
   @override
   Future<List<Cashflow>> build() async {
-    _repository = ref.watch(cashflowRepositoryProvider);
     return _repository.getAllCashflow();
   }
 

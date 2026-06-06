@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/cashflow.dart';
 import '../providers/cashflow_provider.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class CashflowFormPage extends ConsumerStatefulWidget {
   final Cashflow? existingCashflow;
@@ -49,7 +50,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
   void initState() {
     super.initState();
     if (widget.existingCashflow != null) {
-      _amountController.text = widget.existingCashflow!.amount.toStringAsFixed(0);
+      _amountController.text = NumberFormat.decimalPattern('id').format(widget.existingCashflow!.amount);
       _descriptionController.text = widget.existingCashflow!.description ?? '';
       _type = widget.existingCashflow!.type;
       _selectedDate = widget.existingCashflow!.date;
@@ -103,7 +104,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
       final cashflow = Cashflow(
         id: widget.existingCashflow?.id ?? const Uuid().v4(),
         type: _type,
-        amount: double.parse(_amountController.text),
+        amount: double.parse(_amountController.text.replaceAll('.', '')),
         category: _selectedCategory,
         description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
         date: _selectedDate,
@@ -213,14 +214,15 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
                 TextFormField(
                   controller: _amountController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Jumlah Transaksi (Rp)',
                     prefixIcon: Icon(Icons.payments_outlined),
-                    hintText: 'Contoh: 150000',
+                    hintText: 'Contoh: 150.000',
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Wajib diisi';
-                    if (double.tryParse(value) == null) return 'Harus berupa angka';
+                    if (double.tryParse(value.replaceAll('.', '')) == null) return 'Harus berupa angka';
                     return null;
                   },
                 ),

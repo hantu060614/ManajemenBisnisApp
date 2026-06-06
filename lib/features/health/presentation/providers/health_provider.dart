@@ -11,11 +11,10 @@ final healthProvider = AsyncNotifierProvider<HealthNotifier, List<HealthLog>>(()
 });
 
 class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
-  late final HealthRepository _repository;
+  HealthRepository get _repository => ref.read(healthRepositoryProvider);
 
   @override
   Future<List<HealthLog>> build() async {
-    _repository = ref.watch(healthRepositoryProvider);
     return _repository.getAllHealthLogs();
   }
 

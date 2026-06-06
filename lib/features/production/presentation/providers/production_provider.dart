@@ -11,11 +11,10 @@ final productionProvider = AsyncNotifierProvider<ProductionNotifier, List<Produc
 });
 
 class ProductionNotifier extends AsyncNotifier<List<ProductionLog>> {
-  late final ProductionRepository _repository;
+  ProductionRepository get _repository => ref.read(productionRepositoryProvider);
 
   @override
   Future<List<ProductionLog>> build() async {
-    _repository = ref.watch(productionRepositoryProvider);
     return _repository.getAllProductionLogs();
   }
 

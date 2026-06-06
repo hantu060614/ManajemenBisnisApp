@@ -11,11 +11,10 @@ final feedProvider = AsyncNotifierProvider<FeedNotifier, List<FeedLog>>(() {
 });
 
 class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
-  late final FeedRepository _repository;
+  FeedRepository get _repository => ref.read(feedRepositoryProvider);
 
   @override
   Future<List<FeedLog>> build() async {
-    _repository = ref.watch(feedRepositoryProvider);
     return _repository.getAllFeedLogs();
   }
 

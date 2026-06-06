@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../domain/models/feed_log.dart';
 import '../providers/feed_provider.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
+import '../../../../core/utils/currency_formatter.dart';
 
 class FeedFormPage extends ConsumerStatefulWidget {
   final FeedLog? existingFeedLog;
@@ -53,7 +54,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
       _amountGramController.text = log.amountGram.toString();
       _isUpdatingAmount = false;
 
-      _priceController.text = log.pricePerKg.toStringAsFixed(0);
+      _priceController.text = NumberFormat.decimalPattern('id').format(log.pricePerKg);
       _notesController.text = log.notes ?? '';
     }
   }
@@ -173,7 +174,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
         amountKg: double.parse(_amountKgController.text),
         amountOns: double.parse(_amountOnsController.text),
         amountGram: double.parse(_amountGramController.text),
-        pricePerKg: double.parse(_priceController.text),
+        pricePerKg: double.parse(_priceController.text.replaceAll('.', '')),
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         feedingTime: _feedingTime,
       );
@@ -388,13 +389,15 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                 TextFormField(
                   controller: _priceController,
                   keyboardType: TextInputType.number,
+                  inputFormatters: [CurrencyInputFormatter()],
                   decoration: const InputDecoration(
                     labelText: 'Harga Pakan per Kg (Rp)',
                     prefixIcon: Icon(Icons.payments_outlined),
+                    hintText: 'Contoh: 15.000',
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) return 'Wajib diisi';
-                    if (double.tryParse(value) == null) return 'Harus angka';
+                    if (double.tryParse(value.replaceAll('.', '')) == null) return 'Harus angka';
                     return null;
                   },
                 ),
