@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "173257031674",
+    "project_id": "dbternak-33aaa",
+    "storage_bucket": "dbternak-33aaa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:173257031674:android:c40c2812e77a012368ee43",
+        "android_client_info": {
+          "package_name": "com.example.farm_management_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBY13JZpHvr0hRRg9veKIRGTP79BDjwatM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
