@@ -4,9 +4,16 @@ import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/services/notification_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await initializeDateFormatting('id_ID', null);
+  } catch (e) {
+    debugPrint('Locale init failed: $e');
+  }
   
   try {
     await Firebase.initializeApp();

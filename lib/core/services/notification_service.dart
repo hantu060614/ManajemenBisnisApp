@@ -44,7 +44,7 @@ class NotificationService {
     const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'daily_reminder_channel',
       'Daily Reminder',
-      channelDescription: 'Pengingat harian untuk mengecek kandang/kolam',
+      channelDescription: 'Pengingat aktivitas harian peternakan FarmHub',
       importance: Importance.max,
       priority: Priority.high,
       showWhen: false,
@@ -54,22 +54,70 @@ class NotificationService {
       android: androidPlatformChannelSpecifics,
     );
 
-    // Schedule for 8:00 AM every day
     final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, 8);
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
 
+    // 1. Pakan Pagi (08:00)
+    var scheduledPagi = tz.TZDateTime(tz.local, now.year, now.month, now.day, 8);
+    if (scheduledPagi.isBefore(now)) {
+      scheduledPagi = scheduledPagi.add(const Duration(days: 1));
+    }
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       0,
-      'Waktunya Cek Ternak Anda!',
-      'Jangan lupa catat pakan, cek kesehatan ternak, dan catat pengeluaran hari ini ya!',
-      scheduledDate,
+      '🌅 Jadwal Pakan Pagi - FarmHub',
+      'Waktunya memberikan pakan pagi untuk ternak Anda. Jangan lupa dicatat ya!',
+      scheduledPagi,
       platformChannelSpecifics,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time, // repeat every day at this time
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    // 2. Cek Kesehatan (09:00)
+    var scheduledHealth = tz.TZDateTime(tz.local, now.year, now.month, now.day, 9);
+    if (scheduledHealth.isBefore(now)) {
+      scheduledHealth = scheduledHealth.add(const Duration(days: 1));
+    }
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      1,
+      '🩺 Cek Kesehatan Ternak - FarmHub',
+      'Lakukan inspeksi harian: periksa air kolam / kebersihan kandang dan catat kematian / penyakit.',
+      scheduledHealth,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    // 3. Pakan Siang (12:00)
+    var scheduledSiang = tz.TZDateTime(tz.local, now.year, now.month, now.day, 12);
+    if (scheduledSiang.isBefore(now)) {
+      scheduledSiang = scheduledSiang.add(const Duration(days: 1));
+    }
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      2,
+      '☀️ Jadwal Pakan Siang - FarmHub',
+      'Saatnya pakan siang! Pastikan takaran pakan sesuai dengan berat sampling terakhir.',
+      scheduledSiang,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
+
+    // 4. Pakan Sore (17:00)
+    var scheduledSore = tz.TZDateTime(tz.local, now.year, now.month, now.day, 17);
+    if (scheduledSore.isBefore(now)) {
+      scheduledSore = scheduledSore.add(const Duration(days: 1));
+    }
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      3,
+      '🌇 Jadwal Pakan Sore - FarmHub',
+      'Pemberian pakan terakhir hari ini. Selesaikan pencatatan keuangan dan produksi Anda.',
+      scheduledSore,
+      platformChannelSpecifics,
+      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 }

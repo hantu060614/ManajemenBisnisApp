@@ -56,4 +56,11 @@ class BatchRepository {
     final snapshot = await ref.doc(batchId).collection('daily_logs').orderBy('logDate', descending: true).get();
     return snapshot.docs.map((doc) => DailyLog.fromMap(doc.data())).toList();
   }
+
+  Future<void> deleteDailyLog(String batchId, String logId) async {
+    final ref = _batchesRef;
+    if (ref == null) return;
+    
+    await ref.doc(batchId).collection('daily_logs').doc(logId).delete();
+  }
 }

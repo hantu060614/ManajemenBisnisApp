@@ -16,7 +16,6 @@ class ReportsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cashflowAsync = ref.watch(cashflowProvider);
-    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -53,11 +52,11 @@ class ReportsPage extends ConsumerWidget {
                   height: 250,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Colors.black.withOpacity(0.1),
                         blurRadius: 15,
                         offset: const Offset(0, 5),
                       ),
@@ -162,6 +161,7 @@ class ReportsPage extends ConsumerWidget {
 
   Future<void> _exportToPDF(BuildContext context, List<dynamic> cashflows) async {
     final pdf = pw.Document();
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     
     pdf.addPage(
       pw.Page(
@@ -172,7 +172,7 @@ class ReportsPage extends ConsumerWidget {
             children: [
               pw.Text('Laporan Keuangan', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
+              pw.TableHelper.fromTextArray(
                 context: ctx,
                 headers: ['Tanggal', 'Tipe', 'Kategori', 'Jumlah'],
                 data: cashflows.map((c) {
@@ -180,7 +180,7 @@ class ReportsPage extends ConsumerWidget {
                     DateFormat('dd/MM/yyyy').format(c.date),
                     c.type == 'income' ? 'Pemasukan' : 'Pengeluaran',
                     c.category,
-                    c.amount.toString(),
+                    currencyFormatter.format(c.amount),
                   ];
                 }).toList(),
               ),

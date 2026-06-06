@@ -23,6 +23,7 @@ class _DailyLogFormPageState extends ConsumerState<DailyLogFormPage> {
   final _estimatedWeightController = TextEditingController();
   
   DateTime _selectedDate = DateTime.now();
+  String _selectedUnit = 'kg'; // Default unit kg
 
   @override
   void dispose() {
@@ -53,6 +54,7 @@ class _DailyLogFormPageState extends ConsumerState<DailyLogFormPage> {
         batchId: widget.batch.id,
         logDate: _selectedDate,
         feedAmount: double.tryParse(_feedAmountController.text) ?? 0.0,
+        feedUnit: _selectedUnit,
         mortalityCount: int.tryParse(_mortalityCountController.text) ?? 0,
         estimatedWeight: double.tryParse(_estimatedWeightController.text) ?? 0.0,
       );
@@ -76,11 +78,11 @@ class _DailyLogFormPageState extends ConsumerState<DailyLogFormPage> {
         child: Container(
           padding: const EdgeInsets.all(24.0),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 15,
                 offset: const Offset(0, 5),
               ),
@@ -99,17 +101,50 @@ class _DailyLogFormPageState extends ConsumerState<DailyLogFormPage> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                TextFormField(
-                  controller: _feedAmountController,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Jumlah Pakan (Kg)',
-                    prefixIcon: Icon(Icons.scale),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Wajib diisi';
-                    return null;
-                  },
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextFormField(
+                        controller: _feedAmountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Jumlah Pakan',
+                          prefixIcon: Icon(Icons.scale),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Wajib diisi';
+                          return null;
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedUnit,
+                        decoration: const InputDecoration(
+                          labelText: 'Satuan',
+                        ),
+                        dropdownColor: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.secondary),
+                        items: const [
+                          DropdownMenuItem(value: 'g', child: Text('Gram (g)')),
+                          DropdownMenuItem(value: 'ons', child: Text('Ons (ons)')),
+                          DropdownMenuItem(value: 'kg', child: Text('Kg')),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedUnit = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

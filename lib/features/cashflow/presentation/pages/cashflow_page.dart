@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/cashflow_provider.dart';
+import '../../../../core/theme/app_colors.dart';
 
 class CashflowPage extends ConsumerWidget {
   const CashflowPage({super.key});
@@ -10,7 +11,7 @@ class CashflowPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cashflowAsyncValue = ref.watch(cashflowProvider);
-    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0);
+    final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
 
     return Scaffold(
       appBar: AppBar(
@@ -38,10 +39,10 @@ class CashflowPage extends ConsumerWidget {
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: isIncome ? Colors.green.shade100 : Colors.red.shade100,
+                    backgroundColor: isIncome ? AppColors.success.withOpacity(0.1) : AppColors.error.withOpacity(0.1),
                     child: Icon(
                       isIncome ? Icons.arrow_downward : Icons.arrow_upward,
-                      color: isIncome ? Colors.green : Colors.red,
+                      color: isIncome ? AppColors.success : AppColors.error,
                     ),
                   ),
                   title: Text(cashflow.category),
@@ -56,15 +57,41 @@ class CashflowPage extends ConsumerWidget {
                       Text(
                         '${isIncome ? '+' : '-'}${currencyFormatter.format(cashflow.amount)}',
                         style: TextStyle(
-                          color: isIncome ? Colors.green : Colors.red,
+                          color: isIncome ? AppColors.success : AppColors.error,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          _confirmDelete(context, ref, cashflow.id);
+                      const SizedBox(width: 8),
+                      PopupMenuButton<String>(
+                        onSelected: (action) {
+                          if (action == 'edit') {
+                            context.push('/cashflow/add', extra: cashflow);
+                          } else if (action == 'delete') {
+                            _confirmDelete(context, ref, cashflow.id);
+                          }
                         },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, size: 18),
+                                SizedBox(width: 8),
+                                Text('Edit'),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete, color: Colors.red, size: 18),
+                                SizedBox(width: 8),
+                                Text('Hapus', style: TextStyle(color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

@@ -1,0 +1,58 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../data/repositories/health_repository.dart';
+import '../../domain/models/health_log.dart';
+
+final healthRepositoryProvider = Provider<HealthRepository>((ref) {
+  return HealthRepository();
+});
+
+final healthProvider = AsyncNotifierProvider<HealthNotifier, List<HealthLog>>(() {
+  return HealthNotifier();
+});
+
+class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
+  late final HealthRepository _repository;
+
+  @override
+  Future<List<HealthLog>> build() async {
+    _repository = ref.watch(healthRepositoryProvider);
+    return _repository.getAllHealthLogs();
+  }
+
+  Future<void> addHealthLog(HealthLog log) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _repository.insertHealthLog(log);
+      return _repository.getAllHealthLogs();
+    });
+  }
+
+  Future<void> updateHealthLog(HealthLog log) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _repository.updateHealthLog(log);
+      return _repository.getAllHealthLogs();
+    });
+  }
+
+  Future<void> deleteHealthLog(HealthLog log) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _repository.deleteHealthLog(log);
+      return _repository.getAllHealthLogs();
+    });
+  }
+}
+
+// Selector for daily vaccination/medicine task checks
+final todayHealthLogsProvider = Provider<List<HealthLog>>((ref) {
+  final logsAsync = ref.watch(healthProvider);
+  final logs = logsAsync.value ?? [];
+  final now = DateTime.now();
+  final todayStart = DateTime(now.year, now.month, now.day);
+  
+  return logs.where((log) {
+    final logDate = DateTime(log.date.year, log.date.month, log.date.day);
+    return logDate.isAtSameMomentAs(todayStart);
+  }).toList();
+});

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/batch_repository.dart';
 import '../../domain/models/batch.dart';
 import '../../domain/models/daily_log.dart';
@@ -11,12 +12,39 @@ final batchProvider = AsyncNotifierProvider<BatchNotifier, List<Batch>>(() {
   return BatchNotifier();
 });
 
+final dailyLogsProvider = FutureProvider.family<List<DailyLog>, String>((ref, batchId) async {
+  final authState = ref.watch(authProvider);
+  if (!authState.isAuthenticated || authState.userId == null) {
+    return [];
+  }
+  final repository = ref.watch(batchRepositoryProvider);
+  return repository.getDailyLogs(batchId);
+});
+
+final allDailyLogsProvider = FutureProvider<List<DailyLog>>((ref) async {
+  final batchesAsync = ref.watch(batchProvider);
+  final batches = batchesAsync.value ?? [];
+  final repository = ref.read(batchRepositoryProvider);
+  
+  final List<DailyLog> allLogs = [];
+  for (final batch in batches) {
+    final logs = await repository.getDailyLogs(batch.id);
+    allLogs.addAll(logs);
+  }
+  allLogs.sort((a, b) => b.logDate.compareTo(a.logDate));
+  return allLogs;
+});
+
 class BatchNotifier extends AsyncNotifier<List<Batch>> {
   late final BatchRepository _repository;
 
   @override
   Future<List<Batch>> build() async {
+    final authState = ref.watch(authProvider);
     _repository = ref.watch(batchRepositoryProvider);
+    if (!authState.isAuthenticated || authState.userId == null) {
+      return [];
+    }
     return _repository.getAllBatches();
   }
 
@@ -60,11 +88,20 @@ class BatchNotifier extends AsyncNotifier<List<Batch>> {
           initialCount: batch.initialCount,
           currentCount: newCount < 0 ? 0 : newCount,
           startDate: batch.startDate,
+          initialCapital: batch.initialCapital,
           isActive: batch.isActive,
           synced: batch.synced,
         );
         await _repository.updateBatch(updatedBatch);
       }
+      return _repository.getAllBatches();
+    });
+  }
+
+  Future<void> deleteDailyLog(String batchId, String logId) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() async {
+      await _repository.deleteDailyLog(batchId, logId);
       return _repository.getAllBatches();
     });
   }

@@ -159,7 +159,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 60,
-                    backgroundColor: AppColors.primaryLight.withValues(alpha: 0.3),
+                    backgroundColor: AppColors.primaryLight.withOpacity(0.3),
                     backgroundImage: authState.photoUrl != null && (authState.photoUrl!.startsWith('http') || File(authState.photoUrl!).existsSync())
                         ? (authState.photoUrl!.startsWith('http') ? NetworkImage(authState.photoUrl!) : FileImage(File(authState.photoUrl!))) as ImageProvider
                         : null,

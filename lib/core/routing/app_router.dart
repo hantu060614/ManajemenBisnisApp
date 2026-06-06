@@ -8,8 +8,18 @@ import '../../features/batches/presentation/pages/daily_log_form_page.dart';
 import '../../features/cashflow/presentation/pages/cashflow_page.dart';
 import '../../features/cashflow/presentation/pages/cashflow_form_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
+import '../../features/feed/presentation/pages/feed_list_page.dart';
+import '../../features/feed/presentation/pages/feed_form_page.dart';
 import '../../features/batches/domain/models/batch.dart';
 import '../../features/cashflow/domain/models/cashflow.dart';
+import '../../features/feed/domain/models/feed_log.dart';
+import '../../features/health/presentation/pages/health_list_page.dart';
+import '../../features/health/presentation/pages/health_form_page.dart';
+import '../../features/health/domain/models/health_log.dart';
+import '../../features/production/presentation/pages/production_list_page.dart';
+import '../../features/production/presentation/pages/production_form_page.dart';
+import '../../features/production/domain/models/production_log.dart';
+import '../../features/analytics/presentation/pages/analytics_page.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -62,6 +72,43 @@ class AppRouter {
       GoRoute(
         path: '/reports',
         builder: (context, state) => const ReportsPage(),
+      ),
+      GoRoute(
+        path: '/feed',
+        builder: (context, state) => const FeedListPage(),
+      ),
+      GoRoute(
+        path: '/feed/add',
+        builder: (context, state) {
+          final existingFeedLog = state.extra as FeedLog?;
+          return FeedFormPage(existingFeedLog: existingFeedLog);
+        },
+      ),
+      GoRoute(
+        path: '/health',
+        builder: (context, state) => const HealthListPage(),
+      ),
+      GoRoute(
+        path: '/health/add',
+        builder: (context, state) {
+          final existingLog = state.extra as HealthLog?;
+          return HealthFormPage(existingHealthLog: existingLog);
+        },
+      ),
+      GoRoute(
+        path: '/production',
+        builder: (context, state) => const ProductionListPage(),
+      ),
+      GoRoute(
+        path: '/production/add',
+        builder: (context, state) {
+          final existingLog = state.extra as ProductionLog?;
+          return ProductionFormPage(existingProductionLog: existingLog);
+        },
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (context, state) => const AnalyticsPage(),
       ),
     ],
   );

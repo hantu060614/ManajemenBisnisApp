@@ -75,14 +75,38 @@ class AuthNotifier extends StateNotifier<AuthState> {
           email: email,
           password: password,
         );
-      } catch (e) {
-        // Jika login gagal (kemungkinan akun belum ada), buat akun baru otomatis
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          // Jika login gagal karena user belum terdaftar, buat akun baru otomatis (logic asli)
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+          throw 'Password yang Anda masukkan salah. Silakan coba lagi.';
+        } else if (e.code == 'too-many-requests') {
+          throw 'Terlalu banyak percobaan masuk. Silakan coba beberapa saat lagi.';
+        } else {
+          rethrow;
+        }
       }
       state = state.copyWith(isLoading: false);
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Terjadi kesalahan saat masuk. Silakan coba lagi.';
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'Email sudah terdaftar dengan password berbeda.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'Format email tidak valid.';
+      } else if (e.code == 'weak-password') {
+        errorMessage = 'Kata sandi terlalu lemah (minimal 6 karakter).';
+      } else if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMessage = 'Password yang Anda masukkan salah. Silakan coba lagi.';
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = 'Terlalu banyak percobaan masuk. Silakan coba beberapa saat lagi.';
+      } else if (e.code == 'user-disabled') {
+        errorMessage = 'Akun ini telah dinonaktifkan.';
+      }
+      state = state.copyWith(isLoading: false, error: errorMessage);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

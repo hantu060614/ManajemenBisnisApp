@@ -99,13 +99,14 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
         initialCount: widget.batch.initialCount,
         currentCount: widget.batch.currentCount,
         startDate: widget.batch.startDate,
+        initialCapital: widget.batch.initialCapital,
         isActive: false, // End cycle
         synced: widget.batch.synced,
       );
       ref.read(batchProvider.notifier).updateBatch(updatedBatch);
 
       // 2. Add cashflow income
-      final priceStr = NumberFormat.currency(locale: 'id', symbol: 'Rp', decimalDigits: 0).format(double.tryParse(_priceController.text) ?? 0);
+      final priceStr = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(double.tryParse(_priceController.text) ?? 0);
       String desc = '';
 
       if (_isLargeAnimal) {
@@ -161,10 +162,22 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
             labelText: 'Sistem Penjualan',
             prefixIcon: Icon(Icons.handshake_outlined),
           ),
+          dropdownColor: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.secondary),
           items: _salesSystems.map((String sys) {
             return DropdownMenuItem<String>(
               value: sys,
-              child: Text(sys),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  children: [
+                    Icon(sys == 'Per Ekor' ? Icons.tag : Icons.scale, size: 18, color: Theme.of(context).colorScheme.secondary),
+                    const SizedBox(width: 12),
+                    Text(sys, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
             );
           }).toList(),
           onChanged: (String? newValue) {
@@ -241,10 +254,16 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
                 decoration: const InputDecoration(
                   labelText: 'Satuan',
                 ),
+                dropdownColor: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.secondary),
                 items: _units.map((String unit) {
                   return DropdownMenuItem<String>(
                     value: unit,
-                    child: Text(unit),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4.0),
+                      child: Text(unit, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    ),
                   );
                 }).toList(),
                 onChanged: (String? newValue) {
@@ -275,7 +294,7 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(locale: 'id', symbol: 'Rp', decimalDigits: 0);
+    final currencyFormatter = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0);
     
     return Scaffold(
       appBar: AppBar(

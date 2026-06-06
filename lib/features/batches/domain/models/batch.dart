@@ -6,6 +6,7 @@ class Batch {
   final int initialCount;
   final int currentCount;
   final DateTime startDate;
+  final double initialCapital;
   final bool isActive;
   final bool synced;
 
@@ -17,6 +18,7 @@ class Batch {
     required this.initialCount,
     required this.currentCount,
     required this.startDate,
+    required this.initialCapital,
     required this.isActive,
     this.synced = false,
   });
@@ -30,6 +32,7 @@ class Batch {
       'initialCount': initialCount,
       'currentCount': currentCount,
       'startDate': startDate.toIso8601String(),
+      'initialCapital': initialCapital,
       'isActive': isActive ? 1 : 0,
       'synced': synced ? 1 : 0,
     };
@@ -44,6 +47,7 @@ class Batch {
       initialCount: map['initialCount'] as int,
       currentCount: map['currentCount'] as int,
       startDate: DateTime.parse(map['startDate'] as String),
+      initialCapital: (map['initialCapital'] as num?)?.toDouble() ?? 0.0,
       isActive: (map['isActive'] as int) == 1,
       synced: (map['synced'] as int) == 1,
     );
