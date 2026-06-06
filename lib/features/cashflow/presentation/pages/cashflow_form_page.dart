@@ -49,7 +49,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
   void initState() {
     super.initState();
     if (widget.existingCashflow != null) {
-      _amountController.text = widget.existingCashflow!.amount.toString();
+      _amountController.text = widget.existingCashflow!.amount.toStringAsFixed(0);
       _descriptionController.text = widget.existingCashflow!.description ?? '';
       _type = widget.existingCashflow!.type;
       _selectedDate = widget.existingCashflow!.date;

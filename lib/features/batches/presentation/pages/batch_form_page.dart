@@ -50,7 +50,7 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
           : (availableTypes.isNotEmpty ? availableTypes.first : '');
           
       _initialCountController.text = widget.existingBatch!.initialCount.toString();
-      _initialCapitalController.text = widget.existingBatch!.initialCapital.toString();
+      _initialCapitalController.text = widget.existingBatch!.initialCapital.toStringAsFixed(0);
       _selectedDate = widget.existingBatch!.startDate;
       _isActive = widget.existingBatch!.isActive;
     } else {

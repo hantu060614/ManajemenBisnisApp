@@ -53,7 +53,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
       _amountGramController.text = log.amountGram.toString();
       _isUpdatingAmount = false;
 
-      _priceController.text = log.pricePerKg.toString();
+      _priceController.text = log.pricePerKg.toStringAsFixed(0);
       _notesController.text = log.notes ?? '';
     }
   }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/activity_assistant_provider.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
 
 class DashboardPage extends ConsumerWidget {
@@ -264,72 +265,139 @@ class DashboardPage extends ConsumerWidget {
                       // Asisten Aktivitas Hari Ini (Timeline/Checklist)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: ref.watch(activityAssistantProvider).when(
+                          data: (activityState) {
+                            final feedingTimes = activityState.feedingTimes;
+                            final completedActivities = activityState.completedActivities;
+                            
+                            IconData getFeedIcon(int index, int total) {
+                              if (total == 1) return Icons.restaurant_menu;
+                              if (total == 2) {
+                                return index == 0 ? Icons.light_mode_outlined : Icons.dark_mode_outlined;
+                              }
+                              if (total == 3) {
+                                if (index == 0) return Icons.light_mode_outlined;
+                                if (index == 1) return Icons.wb_sunny_outlined;
+                                return Icons.dark_mode_outlined;
+                              }
+                              if (index == 0) return Icons.wb_twilight;
+                              if (index == 1) return Icons.light_mode_outlined;
+                              if (index == 2) return Icons.wb_sunny_outlined;
+                              return Icons.dark_mode_outlined;
+                            }
+                            
+                            Color getFeedIconColor(int index, int total) {
+                              if (total == 1) return Colors.orange;
+                              if (total == 2) {
+                                return index == 0 ? Colors.amber : Colors.indigoAccent;
+                              }
+                              if (total == 3) {
+                                if (index == 0) return Colors.amber;
+                                if (index == 1) return Colors.orange;
+                                return Colors.indigoAccent;
+                              }
+                              if (index == 0) return Colors.orangeAccent;
+                              if (index == 1) return Colors.amber;
+                              if (index == 2) return Colors.orange;
+                              return Colors.indigoAccent;
+                            }
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  'Asisten Aktivitas Hari Ini 📋',
-                                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Asisten Aktivitas Hari Ini 📋',
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.settings, size: 20, color: Colors.blueAccent),
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) {
+                                                return _ActivitySettingsDialog(initialState: activityState);
+                                              },
+                                            );
+                                          },
+                                          tooltip: 'Pengaturan Aktivitas',
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          todayStr,
+                                          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.secondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  todayStr,
-                                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.secondary),
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.08)),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      ...List.generate(feedingTimes.length, (i) {
+                                        final key = 'feed_$i';
+                                        final isCompleted = completedActivities.contains(key);
+                                        return Column(
+                                          children: [
+                                            if (i > 0) const Divider(height: 16),
+                                            _buildActivityItem(
+                                              context,
+                                              title: feedingTimes.length == 1 ? 'Jadwal Pakan' : 'Jadwal Pakan ${i + 1}',
+                                              subtitle: '${feedingTimes[i]} WIB',
+                                              icon: getFeedIcon(i, feedingTimes.length),
+                                              iconColor: getFeedIconColor(i, feedingTimes.length),
+                                              completed: isCompleted,
+                                              onTap: () {
+                                                ref.read(activityAssistantProvider.notifier).toggleActivity(key, !isCompleted);
+                                              },
+                                            ),
+                                          ],
+                                        );
+                                      }),
+                                      const Divider(height: 16),
+                                      _buildActivityItem(
+                                        context,
+                                        title: 'Vaksinasi / Sanitasi Unit',
+                                        subtitle: 'Mingguan / Bulanan',
+                                        icon: Icons.vaccines_outlined,
+                                        iconColor: Colors.green,
+                                        completed: completedActivities.contains('vaccination'),
+                                        onTap: () {
+                                          final isCompleted = completedActivities.contains('vaccination');
+                                          ref.read(activityAssistantProvider.notifier).toggleActivity('vaccination', !isCompleted);
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
+                            );
+                          },
+                          loading: () => const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24.0),
+                              child: CircularProgressIndicator(),
                             ),
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.surface,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.08)),
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildActivityItem(
-                                    context,
-                                    title: 'Jadwal Pakan Pagi',
-                                    subtitle: '08:00 WIB',
-                                    icon: Icons.light_mode_outlined,
-                                    iconColor: Colors.amber,
-                                    completed: data.feedOut > 0 || DateTime.now().hour >= 10,
-                                  ),
-                                  const Divider(height: 16),
-                                  _buildActivityItem(
-                                    context,
-                                    title: 'Jadwal Pakan Siang',
-                                    subtitle: '12:00 WIB',
-                                    icon: Icons.wb_sunny_outlined,
-                                    iconColor: Colors.orange,
-                                    completed: DateTime.now().hour >= 14,
-                                  ),
-                                  const Divider(height: 16),
-                                  _buildActivityItem(
-                                    context,
-                                    title: 'Jadwal Pakan Sore',
-                                    subtitle: '17:00 WIB',
-                                    icon: Icons.dark_mode_outlined,
-                                    iconColor: Colors.indigoAccent,
-                                    completed: DateTime.now().hour >= 18,
-                                  ),
-                                  const Divider(height: 16),
-                                  _buildActivityItem(
-                                    context,
-                                    title: 'Vaksinasi / Sanitasi Unit',
-                                    subtitle: 'Mingguan / Bulanan',
-                                    icon: Icons.vaccines_outlined,
-                                    iconColor: Colors.green,
-                                    completed: false,
-                                  ),
-                                ],
-                              ),
+                          ),
+                          error: (error, stack) => Center(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24.0),
+                              child: Text('Gagal memuat jadwal: $error'),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -557,40 +625,202 @@ class DashboardPage extends ConsumerWidget {
     required IconData icon,
     required Color iconColor,
     required bool completed,
+    required VoidCallback onTap,
   }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  decoration: completed ? TextDecoration.lineThrough : null,
-                  color: completed ? Theme.of(context).colorScheme.secondary.withOpacity(0.5) : null,
-                ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
               ),
-              const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      decoration: completed ? TextDecoration.lineThrough : null,
+                      color: completed ? Theme.of(context).colorScheme.secondary.withOpacity(0.5) : null,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
+            ),
+            Icon(
+              completed ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: completed ? Colors.green : Colors.grey.withOpacity(0.5),
+              size: 24,
+            ),
+          ],
         ),
-        Icon(
-          completed ? Icons.check_circle : Icons.radio_button_unchecked,
-          color: completed ? Colors.green : Colors.grey.withOpacity(0.5),
-          size: 24,
+      ),
+    );
+  }
+}
+
+class _ActivitySettingsDialog extends StatefulWidget {
+  final ActivityState initialState;
+
+  const _ActivitySettingsDialog({required this.initialState});
+
+  @override
+  State<_ActivitySettingsDialog> createState() => _ActivitySettingsDialogState();
+}
+
+class _ActivitySettingsDialogState extends State<_ActivitySettingsDialog> {
+  late int _feedCount;
+  late List<String> _feedingTimes;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedCount = widget.initialState.feedingTimes.length;
+    _feedingTimes = List<String>.from(widget.initialState.feedingTimes);
+  }
+
+  void _updateFeedCount(int? count) {
+    if (count == null) return;
+    setState(() {
+      _feedCount = count;
+      if (_feedingTimes.length < _feedCount) {
+        final defaults = ['08:00', '12:00', '17:00', '21:00'];
+        for (int i = _feedingTimes.length; i < _feedCount; i++) {
+          _feedingTimes.add(defaults[i % defaults.length]);
+        }
+      } else if (_feedingTimes.length > _feedCount) {
+        _feedingTimes = _feedingTimes.sublist(0, _feedCount);
+      }
+    });
+  }
+
+  Future<void> _selectTime(int index) async {
+    final initialParts = _feedingTimes[index].split(':');
+    final initialHour = int.tryParse(initialParts[0]) ?? 8;
+    final initialMinute = int.tryParse(initialParts[1]) ?? 0;
+
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: initialHour, minute: initialMinute),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            dialogTheme: DialogTheme(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final hourStr = picked.hour.toString().padLeft(2, '0');
+      final minuteStr = picked.minute.toString().padLeft(2, '0');
+      setState(() {
+        _feedingTimes[index] = '$hourStr:$minuteStr';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text(
+        'Pengaturan Jadwal Pakan',
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+      ),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Jumlah Pemberian Pakan Sehari:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<int>(
+              value: _feedCount,
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('1 Kali Sehari')),
+                DropdownMenuItem(value: 2, child: Text('2 Kali Sehari')),
+                DropdownMenuItem(value: 3, child: Text('3 Kali Sehari')),
+                DropdownMenuItem(value: 4, child: Text('4 Kali Sehari')),
+              ],
+              onChanged: _updateFeedCount,
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Atur Waktu Pakan:',
+              style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...List.generate(_feedCount, (index) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  title: Text('Pemberian Pakan ${index + 1}'),
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_feedingTimes[index]} WIB',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  onTap: () => _selectTime(index),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+        Consumer(
+          builder: (context, ref, child) {
+            return ElevatedButton(
+              onPressed: () {
+                ref.read(activityAssistantProvider.notifier).updateSchedule(_feedingTimes);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Jadwal aktivitas berhasil disimpan!')),
+                );
+              },
+              child: const Text('Simpan'),
+            );
+          },
         ),
       ],
     );
