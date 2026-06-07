@@ -10,6 +10,8 @@ class FeedLog {
   final double pricePerKg;
   final String? notes;
   final String feedingTime; // 'Pagi', 'Siang', 'Sore'
+  final int mortalityCount; // Opsional/tambahan
+  final double estimatedWeight; // Opsional/tambahan
   final bool synced;
 
   FeedLog({
@@ -24,6 +26,8 @@ class FeedLog {
     required this.pricePerKg,
     this.notes,
     required this.feedingTime,
+    this.mortalityCount = 0,
+    this.estimatedWeight = 0.0,
     this.synced = false,
   });
 
@@ -40,6 +44,8 @@ class FeedLog {
       'pricePerKg': pricePerKg,
       'notes': notes,
       'feedingTime': feedingTime,
+      'mortalityCount': mortalityCount,
+      'estimatedWeight': estimatedWeight,
       'synced': synced ? 1 : 0,
     };
   }
@@ -72,6 +78,8 @@ class FeedLog {
       pricePerKg: (map['pricePerKg'] as num?)?.toDouble() ?? 0.0,
       notes: map['notes'] as String?,
       feedingTime: map['feedingTime'] as String? ?? 'Pagi',
+      mortalityCount: (map['mortalityCount'] as num?)?.toInt() ?? 0,
+      estimatedWeight: (map['estimatedWeight'] as num?)?.toDouble() ?? 0.0,
       synced: (map['synced'] as int? ?? 0) == 1,
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/services/notification_service.dart';
 
 class ActivityState {
   final List<String> feedingTimes;
@@ -92,6 +93,7 @@ class ActivityNotifier extends StateNotifier<AsyncValue<ActivityState>> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList('activity_feeding_times', newFeedingTimes);
+      await NotificationService().scheduleDailyReminders(newFeedingTimes);
     } catch (e) {
       // log error
     }

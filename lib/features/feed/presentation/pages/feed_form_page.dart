@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/feed_log.dart';
 import '../providers/feed_provider.dart';
+import '../providers/feed_stock_provider.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
 import '../../../../core/utils/currency_formatter.dart';
 
@@ -19,18 +20,22 @@ class FeedFormPage extends ConsumerStatefulWidget {
 
 class _FeedFormPageState extends ConsumerState<FeedFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _feedTypeController = TextEditingController();
   final _amountKgController = TextEditingController();
   final _amountOnsController = TextEditingController();
   final _amountGramController = TextEditingController();
   final _priceController = TextEditingController();
   final _notesController = TextEditingController();
+  final _mortalityController = TextEditingController();
+  final _estimatedWeightController = TextEditingController();
 
   String? _selectedBatchId;
   String? _selectedBatchName;
   String _feedingTime = 'Pagi'; // 'Pagi', 'Siang', or 'Sore'
   DateTime _selectedDate = DateTime.now();
   bool _isUpdatingAmount = false;
+  
+  String? _selectedFeedType;
+  double _availableStockKg = 0;
 
   @override
   void initState() {
@@ -46,16 +51,18 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
       _selectedBatchName = log.batchName;
       _feedingTime = log.feedingTime;
       _selectedDate = log.date;
-      _feedTypeController.text = log.feedType;
+      _selectedFeedType = log.feedType;
       
       _isUpdatingAmount = true;
-      _amountKgController.text = log.amountKg.toString();
-      _amountOnsController.text = log.amountOns.toString();
-      _amountGramController.text = log.amountGram.toString();
+      _amountKgController.text = log.amountKg.toString().replaceAll(RegExp(r'\.0$'), '');
+      _amountOnsController.text = log.amountOns.toString().replaceAll(RegExp(r'\.0$'), '');
+      _amountGramController.text = log.amountGram.toString().replaceAll(RegExp(r'\.0$'), '');
       _isUpdatingAmount = false;
 
       _priceController.text = NumberFormat.decimalPattern('id').format(log.pricePerKg);
       _notesController.text = log.notes ?? '';
+      _mortalityController.text = log.mortalityCount > 0 ? log.mortalityCount.toString() : '';
+      _estimatedWeightController.text = log.estimatedWeight > 0 ? log.estimatedWeight.toString() : '';
     }
   }
 
@@ -64,12 +71,13 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
     _amountKgController.removeListener(_onKgChanged);
     _amountOnsController.removeListener(_onOnsChanged);
     _amountGramController.removeListener(_onGramChanged);
-    _feedTypeController.dispose();
     _amountKgController.dispose();
     _amountOnsController.dispose();
     _amountGramController.dispose();
     _priceController.dispose();
     _notesController.dispose();
+    _mortalityController.dispose();
+    _estimatedWeightController.dispose();
     super.dispose();
   }
 
@@ -165,18 +173,40 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
         return;
       }
 
+      final batches = ref.read(batchProvider).value ?? [];
+      final selectedBatch = batches.firstWhere((b) => b.id == _selectedBatchId, orElse: () => throw Exception('Batch not found'));
+      final mortality = int.tryParse(_mortalityController.text) ?? 0;
+      final realPopulation = selectedBatch.currentCount + (widget.existingFeedLog?.mortalityCount ?? 0);
+      
+      if (mortality > realPopulation) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Kematian ($mortality) melebihi populasi saat ini ($realPopulation).')),
+        );
+        return;
+      }
+
+      final amountKg = double.parse(_amountKgController.text);
+      if (widget.existingFeedLog == null && amountKg > _availableStockKg) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stok pakan tidak mencukupi. Stok tersisa hanya $_availableStockKg Kg. Silakan catat pembelian pakan baru terlebih dahulu.')),
+        );
+        return;
+      }
+
       final feedLog = FeedLog(
         id: widget.existingFeedLog?.id ?? const Uuid().v4(),
         batchId: _selectedBatchId!,
         batchName: _selectedBatchName!,
         date: _selectedDate,
-        feedType: _feedTypeController.text.trim(),
-        amountKg: double.parse(_amountKgController.text),
+        feedType: _selectedFeedType ?? '',
+        amountKg: amountKg,
         amountOns: double.parse(_amountOnsController.text),
         amountGram: double.parse(_amountGramController.text),
         pricePerKg: double.parse(_priceController.text.replaceAll('.', '')),
         notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         feedingTime: _feedingTime,
+        mortalityCount: int.tryParse(_mortalityController.text) ?? 0,
+        estimatedWeight: double.tryParse(_estimatedWeightController.text) ?? 0.0,
       );
 
       if (widget.existingFeedLog == null) {
@@ -197,6 +227,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
   @override
   Widget build(BuildContext context) {
     final batchesAsync = ref.watch(batchProvider);
+    final feedStocksAsync = ref.watch(feedStockProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -298,7 +329,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: ChoiceChip(
                         label: const Center(child: Text('Siang')),
@@ -308,7 +339,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: ChoiceChip(
                         label: const Center(child: Text('Sore')),
@@ -318,18 +349,86 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                         },
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: const Center(child: Text('Malam')),
+                        selected: _feedingTime == 'Malam',
+                        onSelected: (selected) {
+                          if (selected) setState(() => _feedingTime = 'Malam');
+                        },
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
 
-                // Jenis Pakan
-                TextFormField(
-                  controller: _feedTypeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis Pakan (Misal: PF 1000, Konsentrat)',
-                    prefixIcon: Icon(Icons.category_outlined),
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty ? 'Wajib diisi' : null,
+                // Jenis Pakan (Dropdown dari Stok)
+                feedStocksAsync.when(
+                  data: (stocks) {
+                    final availableStocks = stocks.where((s) => s.currentStockKg > 0).toList();
+                    
+                    if (availableStocks.isEmpty && widget.existingFeedLog == null) {
+                      return Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.orange),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Stok pakan kosong. Silakan catat pembelian pakan di menu Keuangan terlebih dahulu.',
+                                style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    // For editing, we might need to show the old feedType even if stock is 0
+                    if (widget.existingFeedLog != null && _selectedFeedType != null) {
+                      final hasStock = availableStocks.any((s) => s.feedType == _selectedFeedType);
+                      if (!hasStock) {
+                        final oldStock = stocks.where((s) => s.feedType == _selectedFeedType).firstOrNull;
+                        if (oldStock != null) availableStocks.add(oldStock);
+                      }
+                    }
+
+                    return DropdownButtonFormField<String>(
+                      value: _selectedFeedType,
+                      decoration: const InputDecoration(
+                        labelText: 'Jenis Pakan (Pilih dari stok)',
+                        prefixIcon: Icon(Icons.category_outlined),
+                      ),
+                      dropdownColor: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      icon: Icon(Icons.keyboard_arrow_down, color: Theme.of(context).colorScheme.secondary),
+                      items: availableStocks.map((s) {
+                        return DropdownMenuItem<String>(
+                          value: s.feedType,
+                          child: Text('${s.feedType} (Sisa: ${s.currentStockKg.toStringAsFixed(2)} Kg)', style: const TextStyle(fontWeight: FontWeight.w500)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() {
+                            _selectedFeedType = value;
+                            final stock = availableStocks.firstWhere((s) => s.feedType == value);
+                            _availableStockKg = stock.currentStockKg;
+                          });
+                        }
+                      },
+                      validator: (value) => value == null ? 'Wajib diisi' : null,
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (err, stack) => Text('Gagal memuat stok: $err'),
                 ),
                 const SizedBox(height: 18),
 
@@ -412,6 +511,59 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                   ),
                   maxLines: 2,
                 ),
+                const SizedBox(height: 24),
+
+                // Opsional: Catat Kematian & Pertumbuhan
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).colorScheme.error.withOpacity(0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Status Ikan (Isi Sekali Sehari)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _mortalityController,
+                        keyboardType: TextInputType.number,
+                        decoration: InputDecoration(
+                          labelText: 'Angka Kematian (Ekor) - Opsional',
+                          prefixIcon: const Icon(Icons.cruelty_free_outlined),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _estimatedWeightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Estimasi Berat Rata-rata (Kg) - Opsional',
+                          prefixIcon: const Icon(Icons.monitor_weight_outlined),
+                          filled: true,
+                          fillColor: Theme.of(context).colorScheme.surface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 18),
 
                 // Tanggal
@@ -424,7 +576,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                       prefixIcon: Icon(Icons.calendar_today_outlined),
                     ),
                     child: Text(
-                      DateFormat('dd MMMM yyyy').format(_selectedDate),
+                      DateFormat('dd MMM yyyy').format(_selectedDate),
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                     ),
                   ),

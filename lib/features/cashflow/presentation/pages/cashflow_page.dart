@@ -107,6 +107,7 @@ class CashflowPage extends ConsumerWidget {
         error: (error, stack) => Center(child: Text('Error: $error')),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () {
           context.push('/cashflow/add');
         },

@@ -5,6 +5,7 @@ import 'core/routing/app_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +33,10 @@ void main() async {
       final notificationService = NotificationService();
       await notificationService.init();
       await notificationService.requestPermissions();
-      await notificationService.scheduleDailyReminder();
+      
+      final prefs = await SharedPreferences.getInstance();
+      final feedingTimes = prefs.getStringList('activity_feeding_times') ?? ['08:00', '12:00', '17:00'];
+      await notificationService.scheduleDailyReminders(feedingTimes);
     } catch (e) {
       debugPrint('Notification init failed: $e');
     }

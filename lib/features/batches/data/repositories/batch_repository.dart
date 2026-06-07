@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/models/batch.dart';
-import '../../domain/models/daily_log.dart';
 
 class BatchRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -41,26 +40,4 @@ class BatchRepository {
     await ref.doc(id).delete();
   }
 
-  // --- Daily Logs ---
-  Future<void> insertDailyLog(DailyLog log) async {
-    final ref = _batchesRef;
-    if (ref == null) return;
-    
-    await ref.doc(log.batchId).collection('daily_logs').doc(log.id).set(log.toMap());
-  }
-
-  Future<List<DailyLog>> getDailyLogs(String batchId) async {
-    final ref = _batchesRef;
-    if (ref == null) return [];
-    
-    final snapshot = await ref.doc(batchId).collection('daily_logs').orderBy('logDate', descending: true).get();
-    return snapshot.docs.map((doc) => DailyLog.fromMap(doc.data())).toList();
-  }
-
-  Future<void> deleteDailyLog(String batchId, String logId) async {
-    final ref = _batchesRef;
-    if (ref == null) return;
-    
-    await ref.doc(batchId).collection('daily_logs').doc(logId).delete();
-  }
 }

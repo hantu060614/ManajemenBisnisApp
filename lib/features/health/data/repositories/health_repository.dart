@@ -16,24 +16,6 @@ class HealthRepository {
     final ref = _healthLogsRef;
     if (ref == null) return;
     await ref.doc(log.id).set(log.toMap());
-
-    // If type is Kematian, we should also update the batch's currentCount.
-    if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
-      final batchRef = _firestore.collection('users').doc(_userId).collection('batches').doc(log.batchId);
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(batchRef);
-        if (snapshot.exists) {
-          final data = snapshot.data();
-          if (data != null) {
-            final currentCount = (data['currentCount'] as num?)?.toInt() ?? 0;
-            final newCount = currentCount - log.amount;
-            transaction.update(batchRef, {
-              'currentCount': newCount < 0 ? 0 : newCount,
-            });
-          }
-        }
-      });
-    }
   }
 
   Future<List<HealthLog>> getAllHealthLogs() async {
@@ -56,22 +38,5 @@ class HealthRepository {
     if (ref == null) return;
     
     await ref.doc(log.id).delete();
-
-    // If we deleted a Kematian log, we should restore the population.
-    if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
-      final batchRef = _firestore.collection('users').doc(_userId).collection('batches').doc(log.batchId);
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(batchRef);
-        if (snapshot.exists) {
-          final data = snapshot.data();
-          if (data != null) {
-            final currentCount = (data['currentCount'] as num?)?.toInt() ?? 0;
-            transaction.update(batchRef, {
-              'currentCount': currentCount + log.amount,
-            });
-          }
-        }
-      });
-    }
   }
 }

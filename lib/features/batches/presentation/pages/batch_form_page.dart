@@ -117,7 +117,9 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
       children: [
         Icon(icon, color: color, size: 22),
         const SizedBox(width: 12),
-        Text(category, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        Expanded(
+          child: Text(category, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        ),
       ],
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
 import '../../../cashflow/presentation/providers/cashflow_provider.dart';
+import '../../../feed/presentation/providers/feed_provider.dart';
 
 class DashboardData {
   final int totalAnimals;
@@ -31,9 +32,9 @@ class DashboardData {
 final dashboardProvider = Provider<AsyncValue<DashboardData>>((ref) {
   final batchesAsync = ref.watch(batchProvider);
   final cashflowAsync = ref.watch(cashflowProvider);
-  final logsAsync = ref.watch(allDailyLogsProvider);
+  final feedLogsAsync = ref.watch(feedProvider);
 
-  if (batchesAsync.isLoading || cashflowAsync.isLoading || logsAsync.isLoading) {
+  if (batchesAsync.isLoading || cashflowAsync.isLoading || feedLogsAsync.isLoading) {
     return const AsyncValue.loading();
   }
 
@@ -45,13 +46,13 @@ final dashboardProvider = Provider<AsyncValue<DashboardData>>((ref) {
     return AsyncValue.error(cashflowAsync.error!, cashflowAsync.stackTrace!);
   }
 
-  if (logsAsync.hasError) {
-    return AsyncValue.error(logsAsync.error!, logsAsync.stackTrace!);
+  if (feedLogsAsync.hasError) {
+    return AsyncValue.error(feedLogsAsync.error!, feedLogsAsync.stackTrace!);
   }
 
   final batches = batchesAsync.value ?? [];
   final cashflows = cashflowAsync.value ?? [];
-  final logs = logsAsync.value ?? [];
+  final feedLogs = feedLogsAsync.value ?? [];
 
   int totalAnimals = 0;
   int activeBatches = 0;
@@ -99,10 +100,10 @@ final dashboardProvider = Provider<AsyncValue<DashboardData>>((ref) {
   }
 
   double feedOutToday = 0;
-  for (final log in logs) {
-    final logDate = DateTime(log.logDate.year, log.logDate.month, log.logDate.day);
+  for (final log in feedLogs) {
+    final logDate = DateTime(log.date.year, log.date.month, log.date.day);
     if (logDate.isAtSameMomentAs(todayStart)) {
-      feedOutToday += log.feedAmountInKg;
+      feedOutToday += log.amountKg; // assuming amountKg is the standard metric
     }
   }
 

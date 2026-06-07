@@ -55,6 +55,7 @@ class _HealthListPageState extends ConsumerState<HealthListPage> {
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () => context.push('/health/add'),
         icon: const Icon(Icons.add),
         label: const Text('Catat Medis'),

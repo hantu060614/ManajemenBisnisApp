@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/health_repository.dart';
 import '../../domain/models/health_log.dart';
+import '../../../batches/presentation/providers/batch_provider.dart';
 
 final healthRepositoryProvider = Provider<HealthRepository>((ref) {
   return HealthRepository();
@@ -22,6 +23,11 @@ class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.insertHealthLog(log);
+      
+      if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
+        await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+      }
+      
       return _repository.getAllHealthLogs();
     });
   }
@@ -30,6 +36,11 @@ class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.updateHealthLog(log);
+
+      if (log.type.toLowerCase() == 'kematian') {
+        await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+      }
+
       return _repository.getAllHealthLogs();
     });
   }
@@ -38,6 +49,11 @@ class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.deleteHealthLog(log);
+
+      if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
+        await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+      }
+
       return _repository.getAllHealthLogs();
     });
   }

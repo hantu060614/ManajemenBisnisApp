@@ -4,12 +4,12 @@ import '../../features/home/presentation/pages/main_page.dart';
 import '../../features/batches/presentation/pages/batches_page.dart';
 import '../../features/batches/presentation/pages/batch_form_page.dart';
 import '../../features/batches/presentation/pages/batch_harvest_form_page.dart';
-import '../../features/batches/presentation/pages/daily_log_form_page.dart';
 import '../../features/cashflow/presentation/pages/cashflow_page.dart';
 import '../../features/cashflow/presentation/pages/cashflow_form_page.dart';
 import '../../features/reports/presentation/pages/reports_page.dart';
 import '../../features/feed/presentation/pages/feed_list_page.dart';
 import '../../features/feed/presentation/pages/feed_form_page.dart';
+import '../../features/feed/presentation/pages/feed_stock_history_page.dart';
 import '../../features/batches/domain/models/batch.dart';
 import '../../features/cashflow/domain/models/cashflow.dart';
 import '../../features/feed/domain/models/feed_log.dart';
@@ -51,13 +51,7 @@ class AppRouter {
           return BatchHarvestFormPage(batch: batch);
         },
       ),
-      GoRoute(
-        path: '/batches/daily-log',
-        builder: (context, state) {
-          final batch = state.extra as Batch;
-          return DailyLogFormPage(batch: batch);
-        },
-      ),
+
       GoRoute(
         path: '/cashflow',
         builder: (context, state) => const CashflowPage(),
@@ -83,6 +77,10 @@ class AppRouter {
           final existingFeedLog = state.extra as FeedLog?;
           return FeedFormPage(existingFeedLog: existingFeedLog);
         },
+      ),
+      GoRoute(
+        path: '/feed/stock-history',
+        builder: (context, state) => const FeedStockHistoryPage(),
       ),
       GoRoute(
         path: '/health',

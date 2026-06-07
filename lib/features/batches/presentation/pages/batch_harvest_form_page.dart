@@ -234,7 +234,7 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              flex: 2,
+              flex: 3,
               child: TextFormField(
                 controller: _quantityController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -247,7 +247,7 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
             ),
             const SizedBox(width: 16),
             Expanded(
-              flex: 1,
+              flex: 2,
               child: DropdownButtonFormField<String>(
                 value: _selectedUnit,
                 isExpanded: true,

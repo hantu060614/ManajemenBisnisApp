@@ -51,6 +51,7 @@ class _ProductionListPageState extends ConsumerState<ProductionListPage> {
         elevation: 0,
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: null,
         onPressed: () => context.push('/production/add'),
         icon: const Icon(Icons.add),
         label: const Text('Catat Produksi'),

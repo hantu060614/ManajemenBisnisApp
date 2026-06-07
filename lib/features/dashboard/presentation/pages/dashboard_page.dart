@@ -273,66 +273,78 @@ class DashboardPage extends ConsumerWidget {
                             IconData getFeedIcon(int index, int total) {
                               if (total == 1) return Icons.restaurant_menu;
                               if (total == 2) {
-                                return index == 0 ? Icons.light_mode_outlined : Icons.dark_mode_outlined;
+                                return index == 0 ? Icons.light_mode_outlined : Icons.wb_cloudy_outlined;
                               }
                               if (total == 3) {
                                 if (index == 0) return Icons.light_mode_outlined;
                                 if (index == 1) return Icons.wb_sunny_outlined;
-                                return Icons.dark_mode_outlined;
+                                return Icons.wb_cloudy_outlined;
                               }
                               if (index == 0) return Icons.wb_twilight;
                               if (index == 1) return Icons.light_mode_outlined;
                               if (index == 2) return Icons.wb_sunny_outlined;
-                              return Icons.dark_mode_outlined;
+                              return Icons.wb_cloudy_outlined;
                             }
                             
                             Color getFeedIconColor(int index, int total) {
                               if (total == 1) return Colors.orange;
                               if (total == 2) {
-                                return index == 0 ? Colors.amber : Colors.indigoAccent;
+                                return index == 0 ? Colors.amber : Colors.orangeAccent;
                               }
                               if (total == 3) {
                                 if (index == 0) return Colors.amber;
                                 if (index == 1) return Colors.orange;
-                                return Colors.indigoAccent;
+                                return Colors.orangeAccent;
                               }
                               if (index == 0) return Colors.orangeAccent;
                               if (index == 1) return Colors.amber;
                               if (index == 2) return Colors.orange;
-                              return Colors.indigoAccent;
+                              return Colors.deepOrangeAccent;
                             }
 
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      'Asisten Aktivitas Hari Ini 📋',
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    Expanded(
+                                      child: Text(
+                                        'Asisten Aktivitas Hari Ini 📋',
+                                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
-                                    Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(Icons.settings, size: 20, color: Colors.blueAccent),
-                                          onPressed: () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) {
-                                                return _ActivitySettingsDialog(initialState: activityState);
-                                              },
-                                            );
-                                          },
-                                          tooltip: 'Pengaturan Aktivitas',
-                                          visualDensity: VisualDensity.compact,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          todayStr,
-                                          style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.secondary),
-                                        ),
-                                      ],
+                                    const SizedBox(width: 8),
+                                    Flexible(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.settings, size: 20, color: Colors.blueAccent),
+                                            onPressed: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return _ActivitySettingsDialog(initialState: activityState);
+                                                },
+                                              );
+                                            },
+                                            tooltip: 'Pengaturan Aktivitas',
+                                            visualDensity: VisualDensity.compact,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Flexible(
+                                            child: Text(
+                                              todayStr,
+                                              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.secondary),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'package:intl/intl.dart';
 import '../../domain/models/cashflow.dart';
 import '../providers/cashflow_provider.dart';
+import '../../../feed/presentation/providers/feed_stock_provider.dart';
 import '../../../../core/utils/currency_formatter.dart';
 
 class CashflowFormPage extends ConsumerStatefulWidget {
@@ -20,6 +21,8 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _feedTypeController = TextEditingController();
+  final _feedAmountController = TextEditingController();
   
   String _type = 'income'; // 'income' or 'expense'
   String _selectedCategory = 'Penjualan ternak';
@@ -70,6 +73,8 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
   void dispose() {
     _amountController.dispose();
     _descriptionController.dispose();
+    _feedTypeController.dispose();
+    _feedAmountController.dispose();
     super.dispose();
   }
 
@@ -99,12 +104,23 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
     }
   }
 
-  void _saveCashflow() {
+  void _saveCashflow() async {
     if (_formKey.currentState!.validate()) {
+      if (_type == 'expense' && _selectedCategory == 'Pakan') {
+        if (_feedTypeController.text.trim().isEmpty || _feedAmountController.text.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Jenis Pakan dan Jumlah (Kg) harus diisi untuk pembelian pakan.')),
+          );
+          return;
+        }
+      }
+
+      final amount = double.parse(_amountController.text.replaceAll('.', ''));
+      final cashflowId = widget.existingCashflow?.id ?? const Uuid().v4();
       final cashflow = Cashflow(
-        id: widget.existingCashflow?.id ?? const Uuid().v4(),
+        id: cashflowId,
         type: _type,
-        amount: double.parse(_amountController.text.replaceAll('.', '')),
+        amount: amount,
         category: _selectedCategory,
         description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
         date: _selectedDate,
@@ -112,10 +128,42 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
 
       if (widget.existingCashflow == null) {
         ref.read(cashflowProvider.notifier).addCashflow(cashflow);
+
+        // Integrasi Stok Pakan
+        if (_type == 'expense' && _selectedCategory == 'Pakan') {
+          final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
+          if (feedAmount > 0) {
+            await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
+              _feedTypeController.text.trim(),
+              feedAmount,
+              amount,
+              cashflowId,
+              _selectedDate,
+            );
+          }
+        }
       } else {
         ref.read(cashflowProvider.notifier).updateCashflow(cashflow);
+        
+        // Integrasi Stok Pakan (Revert lama, masukkan baru)
+        if (_type == 'expense' && _selectedCategory == 'Pakan') {
+          await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
+          final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
+          if (feedAmount > 0) {
+            await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
+              _feedTypeController.text.trim(),
+              feedAmount,
+              amount,
+              cashflowId,
+              _selectedDate,
+            );
+          }
+        } else {
+          // Jika diubah jadi bukan pakan, cukup revert
+          await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
+        }
       }
-      context.pop();
+      if (mounted) context.pop();
     }
   }
 
@@ -252,6 +300,76 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
                   },
                 ),
                 const SizedBox(height: 18),
+                if (_type == 'expense' && _selectedCategory == 'Pakan' && widget.existingCashflow == null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.inventory_2_outlined, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Detail Stok Pakan',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _feedTypeController,
+                          decoration: InputDecoration(
+                            labelText: 'Jenis/Nama Pakan (Misal: PF 1000)',
+                            prefixIcon: const Icon(Icons.category_outlined),
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surface,
+                          ),
+                          validator: (value) {
+                            if (_type == 'expense' && _selectedCategory == 'Pakan') {
+                              if (value == null || value.trim().isEmpty) return 'Wajib diisi';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _feedAmountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: InputDecoration(
+                            labelText: 'Jumlah yang dibeli (Kg)',
+                            prefixIcon: const Icon(Icons.scale_outlined),
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surface,
+                          ),
+                          validator: (value) {
+                            if (_type == 'expense' && _selectedCategory == 'Pakan') {
+                              if (value == null || value.trim().isEmpty) return 'Wajib diisi';
+                              if (double.tryParse(value) == null) return 'Harus angka';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Sistem akan otomatis menghitung Harga per Kg dan memasukkannya ke Manajemen Pakan.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                ],
                 TextFormField(
                   controller: _descriptionController,
                   decoration: const InputDecoration(

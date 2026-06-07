@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/feed_provider.dart';
+import '../providers/feed_stock_provider.dart';
+import '../../domain/models/feed_log.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class FeedListPage extends ConsumerWidget {
@@ -11,18 +13,19 @@ class FeedListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feedLogsAsync = ref.watch(feedProvider);
+    final feedStocksAsync = ref.watch(feedStockProvider);
     final stats = ref.watch(feedStatsProvider);
     final currencyFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
+    String formatWeight(double weight) {
+      if (weight == 0) return '0';
+      String str = weight.toStringAsFixed(3);
+      return str.replaceAll(RegExp(r'0*$'), '').replaceAll(RegExp(r'\.$'), '');
+    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Pakan'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.push('/feed/add'),
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -37,6 +40,117 @@ class FeedListPage extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Feed Stock Summary Card
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Stok Pakan Tersedia',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        TextButton(
+                          onPressed: () => context.push('/feed/stock-history'),
+                          child: const Text('Riwayat Stok', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    feedStocksAsync.when(
+                      data: (stocks) {
+                        final availableStocks = stocks.where((s) => s.currentStockKg > 0).toList();
+                        if (availableStocks.isEmpty) {
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.orange.withOpacity(0.5)),
+                            ),
+                            child: const Column(
+                              children: [
+                                Icon(Icons.inventory_2_outlined, color: Colors.orange, size: 32),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Stok pakan kosong',
+                                  style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'Catat pembelian pakan di menu Keuangan.',
+                                  style: TextStyle(color: Colors.orange, fontSize: 12),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                        
+                        return SizedBox(
+                          height: 110,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: availableStocks.length,
+                            itemBuilder: (context, index) {
+                              final stock = availableStocks[index];
+                              return Container(
+                                width: 160,
+                                margin: const EdgeInsets.only(right: 12),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.inventory, size: 16, color: Theme.of(context).colorScheme.primary),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            stock.feedType,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      '${formatWeight(stock.currentStockKg)} Kg',
+                                      style: TextStyle(
+                                        fontSize: 20, 
+                                        fontWeight: FontWeight.bold,
+                                        color: stock.currentStockKg < 10 ? Colors.red : Theme.of(context).colorScheme.onSurface,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Rata-rata: ${currencyFormatter.format(stock.averagePricePerKg)}/kg',
+                                      style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (err, stack) => Text('Error: $err'),
+                    ),
+                    const SizedBox(height: 24),
+
                     // Hari Ini Card
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -78,7 +192,7 @@ class FeedListPage extends ConsumerWidget {
                                   children: [
                                     const Text('Pagi', style: TextStyle(color: Colors.white60, fontSize: 12), overflow: TextOverflow.ellipsis),
                                     const SizedBox(height: 4),
-                                    Text('${stats.totalPakanPagiToday.toStringAsFixed(1)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                    Text('${formatWeight(stats.totalPakanPagiToday)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
@@ -88,7 +202,7 @@ class FeedListPage extends ConsumerWidget {
                                   children: [
                                     const Text('Sore', style: TextStyle(color: Colors.white60, fontSize: 12), overflow: TextOverflow.ellipsis),
                                     const SizedBox(height: 4),
-                                    Text('${stats.totalPakanSoreToday.toStringAsFixed(1)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                    Text('${formatWeight(stats.totalPakanSoreToday)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
@@ -98,7 +212,7 @@ class FeedListPage extends ConsumerWidget {
                                   children: [
                                     const Text('Total Hari Ini', style: TextStyle(color: Colors.white60, fontSize: 12), overflow: TextOverflow.ellipsis),
                                     const SizedBox(height: 4),
-                                    Text('${stats.totalPakanToday.toStringAsFixed(1)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                    Text('${formatWeight(stats.totalPakanToday)} Kg', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
@@ -169,7 +283,7 @@ class FeedListPage extends ConsumerWidget {
                         Expanded(
                           child: _StatCard(
                             title: 'Pakan Minggu Ini',
-                            value: '${stats.totalPakanThisWeek.toStringAsFixed(1)} Kg',
+                            value: '${formatWeight(stats.totalPakanThisWeek)} Kg',
                             subtitle: currencyFormatter.format(stats.costThisWeek),
                             icon: Icons.date_range_outlined,
                             color: AppColors.primaryLight,
@@ -179,7 +293,7 @@ class FeedListPage extends ConsumerWidget {
                         Expanded(
                           child: _StatCard(
                             title: 'Pakan Bulan Ini',
-                            value: '${stats.totalPakanThisMonth.toStringAsFixed(1)} Kg',
+                            value: '${formatWeight(stats.totalPakanThisMonth)} Kg',
                             subtitle: currencyFormatter.format(stats.costThisMonth),
                             icon: Icons.calendar_month_outlined,
                             color: AppColors.accent,
@@ -216,16 +330,37 @@ class FeedListPage extends ConsumerWidget {
                     (context, index) {
                       final log = logs[index];
                       final totalCost = log.amountKg * log.pricePerKg;
-                      final isMorning = log.feedingTime.toLowerCase() == 'pagi';
+                      final isPagi = log.feedingTime.toLowerCase() == 'pagi';
+                      final isSiang = log.feedingTime.toLowerCase() == 'siang';
+                      final isSore = log.feedingTime.toLowerCase() == 'sore';
+                      final isMalam = log.feedingTime.toLowerCase() == 'malam';
+
+                      IconData getIcon() {
+                        if (isPagi) return Icons.wb_sunny;
+                        if (isSiang) return Icons.wb_cloudy_outlined;
+                        if (isSore) return Icons.wb_twilight;
+                        if (isMalam) return Icons.nightlight_round;
+                        return Icons.star;
+                      }
+
+                      Color getColor() {
+                        if (isPagi) return Colors.orange;
+                        if (isSiang) return Colors.amber;
+                        if (isSore) return Colors.deepOrange;
+                        if (isMalam) return Colors.indigo;
+                        return Colors.grey;
+                      }
+
+                      final iconColor = getColor();
 
                       return Card(
                         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         child: ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: isMorning ? Colors.orange.withOpacity(0.1) : Colors.indigo.withOpacity(0.1),
+                            backgroundColor: iconColor.withOpacity(0.1),
                             child: Icon(
-                              isMorning ? Icons.wb_sunny : Icons.nightlight_round,
-                              color: isMorning ? Colors.orange : Colors.indigo,
+                              getIcon(),
+                              color: iconColor,
                             ),
                           ),
                           title: Row(
@@ -255,7 +390,7 @@ class FeedListPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Text('Jenis: ${log.feedType} • ${log.amountKg.toStringAsFixed(1)} Kg (${log.amountOns.toStringAsFixed(0)} Ons)'),
+                              Text('Jenis: ${log.feedType} • ${formatWeight(log.amountKg)} Kg (${formatWeight(log.amountOns)} Ons)'),
                               const SizedBox(height: 2),
                               Text(
                                 'Biaya: ${currencyFormatter.format(totalCost)}',
@@ -270,7 +405,28 @@ class FeedListPage extends ConsumerWidget {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ],
-                              const SizedBox(height: 2),
+                              if (log.mortalityCount > 0) ...[
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.warning_amber_rounded, size: 12, color: Colors.red),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Mati: ${log.mortalityCount} ekor',
+                                        style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
                               Text(
                                 DateFormat('dd MMM yyyy').format(log.date),
                                 style: const TextStyle(fontSize: 11, color: Colors.grey),
@@ -283,7 +439,7 @@ class FeedListPage extends ConsumerWidget {
                               if (action == 'edit') {
                                 context.push('/feed/add', extra: log);
                               } else if (action == 'delete') {
-                                _confirmDelete(context, ref, log.id);
+                                _confirmDelete(context, ref, log);
                               }
                             },
                             itemBuilder: (context) => [
@@ -335,6 +491,7 @@ class FeedListPage extends ConsumerWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () => context.push('/feed/add'),
         tooltip: 'Catat Pakan',
         child: const Icon(Icons.add),
@@ -342,7 +499,7 @@ class FeedListPage extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, String id) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, FeedLog log) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -355,7 +512,7 @@ class FeedListPage extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              ref.read(feedProvider.notifier).deleteFeedLog(id);
+              ref.read(feedProvider.notifier).deleteFeedLog(log);
               Navigator.pop(ctx);
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.red)),

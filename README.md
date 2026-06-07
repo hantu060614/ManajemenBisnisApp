@@ -16,6 +16,7 @@ Aplikasi ini hadir dengan tema gelap premium (Dark Theme), navigasi yang respons
 ### 📋 2. Asisten Aktivitas Harian (Configurable Activity Assistant)
 * **Jadwal Kustom:** Atur sendiri berapa kali hewan ternak diberi makan dalam sehari (1 hingga 4 kali sehari).
 * **Waktu Makan Presisi:** Atur jam dan menit pemberian pakan secara kustom menggunakan Time Picker bawaan yang bersih dan responsif.
+* **Push Notification (Pengingat Otomatis):** Sistem dilengkapi dengan **Notifikasi Alarm Lokal** yang akan memunculkan *pop-up* peringatan di jam yang sudah Anda atur. Tidak perlu takut lupa memberi makan ternak!
 * **Checklist Interaktif:** Ketuk langsung aktivitas hari ini di dashboard untuk memberikan centang hijau secara manual. Status penyelesaian disimpan secara lokal (`SharedPreferences`) dan akan otomatis direset menjadi kosong ketika hari berganti.
 
 ### 💰 3. Pencatatan Keuangan (Cashflow) & Laporan Profit
@@ -26,8 +27,11 @@ Aplikasi ini hadir dengan tema gelap premium (Dark Theme), navigasi yang respons
 * **Input Ribuan Otomatis:** Saat mengetik modal awal, nominal kas, atau harga pakan, angka secara otomatis akan diformat menggunakan pemisah ribuan titik (contoh: `300.000` bukan `300000` atau `300000.0`).
 * **Pencegahan Error Desimal:** Semua formulir menampilkan input data berupa bilangan bulat bersih sehingga memudahkan kalkulasi keuangan bagi peternak tanpa adanya trailing desimal `.0`.
 
-### 🌾 5. Manajemen Pakan & Log Kesehatan
-* **Konversi Satuan Pakan:** Input pakan harian bisa menggunakan satuan **Gram (g)**, **Ons (ons)**, atau **Kilogram (kg)**. Aplikasi secara otomatis melakukan konversi ke satuan Kilogram (kg) di dashboard untuk analisis konsumsi pakan yang seragam.
+### 🌾 5. Manajemen Pakan & Gudang Stok Terintegrasi (Real-time Sync)
+* **Stok Pakan Dinamis:** Lacak jumlah stok pakan Anda layaknya gudang virtual. Saat Anda mencatat pengeluaran di **Cashflow** untuk pembelian pakan, stok pakan akan otomatis bertambah.
+* **Otomatisasi Real-time:** Sistem pemantauan 2 arah yang cerdas. Jika Anda menghapus catatan pakan di Cashflow, stok akan dikurangi (*revert*). Jika Anda menghapus catatan pemberian makan, stok akan kembali bertambah secara otomatis ke dalam gudang.
+* **Riwayat Mutasi Stok:** Periksa riwayat lalu-lintas keluar masuk stok pakan (pembelian dan penggunaan) layaknya mutasi rekening tabungan.
+* **Konversi Satuan:** Input pakan harian bisa menggunakan satuan Gram (g), Ons (ons), atau Kilogram (kg).
 * **Kesehatan Hewan:** Pantau dan catat pemberian vaksin, obat-obatan, serta vitamin mingguan/bulanan agar kondisi kesehatan ternak tetap terjaga.
 
 ### 🔌 6. Integrasi Sensor IoT (Adaptive IoT Monitoring)

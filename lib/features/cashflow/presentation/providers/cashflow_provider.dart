@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/cashflow_repository.dart';
 import '../../domain/models/cashflow.dart';
+import '../../../feed/presentation/providers/feed_stock_provider.dart';
 
 final cashflowRepositoryProvider = Provider<CashflowRepository>((ref) {
   return CashflowRepository();
@@ -38,6 +39,7 @@ class CashflowNotifier extends AsyncNotifier<List<Cashflow>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.deleteCashflow(id);
+      await ref.read(feedStockProvider.notifier).revertStockTransaction(id);
       return _repository.getAllCashflow();
     });
   }

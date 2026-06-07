@@ -19,15 +19,45 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
   }
 
   Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    const idType = 'TEXT PRIMARY KEY';
+    const textType = 'TEXT NOT NULL';
+    const realType = 'REAL NOT NULL';
+    const boolType = 'BOOLEAN NOT NULL';
+
     if (oldVersion < 2) {
       await db.execute("ALTER TABLE batches ADD COLUMN animalCategory TEXT DEFAULT 'Lainnya'");
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE feed_stock (
+          id $idType,
+          feedType $textType,
+          currentStockKg $realType,
+          averagePricePerKg $realType,
+          lastRestockDate $textType,
+          synced $boolType DEFAULT 0
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE feed_stock_transactions (
+          id $idType,
+          feedStockId $textType,
+          transactionType $textType,
+          amountKg $realType,
+          pricePerKg $realType,
+          totalPrice $realType,
+          date $textType,
+          referenceId $textType,
+          synced $boolType DEFAULT 0
+        )
+      ''');
     }
   }
 
@@ -87,6 +117,33 @@ class DatabaseHelper {
         category $textType,
         description TEXT,
         date $textType,
+        synced $boolType DEFAULT 0
+      )
+    ''');
+
+    // Feed Stock (Stok Pakan)
+    await db.execute('''
+      CREATE TABLE feed_stock (
+        id $idType,
+        feedType $textType,
+        currentStockKg $realType,
+        averagePricePerKg $realType,
+        lastRestockDate $textType,
+        synced $boolType DEFAULT 0
+      )
+    ''');
+
+    // Feed Stock Transactions (Riwayat Stok)
+    await db.execute('''
+      CREATE TABLE feed_stock_transactions (
+        id $idType,
+        feedStockId $textType,
+        transactionType $textType,
+        amountKg $realType,
+        pricePerKg $realType,
+        totalPrice $realType,
+        date $textType,
+        referenceId $textType,
         synced $boolType DEFAULT 0
       )
     ''');

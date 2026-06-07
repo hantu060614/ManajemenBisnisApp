@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/repositories/feed_repository.dart';
 import '../../domain/models/feed_log.dart';
+import '../../../batches/presentation/providers/batch_provider.dart';
+import './feed_stock_provider.dart';
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository();
@@ -22,6 +24,27 @@ class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.insertFeedLog(log);
+
+      // Deduct stock
+      // We assume feedType here matches the stock ID or we need to find stock.
+      // But log.feedType currently stores the string name. 
+      // We need the ID if we use feedStockProvider deductStockFromUsage.
+      // Wait, let's find the stock by feedType first to get the ID.
+      final stocks = ref.read(feedStockProvider).value ?? [];
+      final stock = stocks.where((s) => s.feedType == log.feedType).firstOrNull;
+      if (stock != null) {
+        await ref.read(feedStockProvider.notifier).deductStockFromUsage(
+          stock.id,
+          log.amountKg,
+          log.pricePerKg,
+          log.id,
+          log.date,
+        );
+      }
+
+      // Recalculate population
+      await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+      
       return _repository.getAllFeedLogs();
     });
   }
@@ -30,14 +53,37 @@ class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
       await _repository.updateFeedLog(log);
+
+      // Integrasi Stok Pakan (Revert lama, masukkan baru)
+      await ref.read(feedStockProvider.notifier).revertStockTransaction(log.id);
+      final stocks = ref.read(feedStockProvider).value ?? [];
+      final stock = stocks.where((s) => s.feedType == log.feedType).firstOrNull;
+      if (stock != null) {
+        await ref.read(feedStockProvider.notifier).deductStockFromUsage(
+          stock.id,
+          log.amountKg,
+          log.pricePerKg,
+          log.id,
+          log.date,
+        );
+      }
+
+      // Recalculate population
+      await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+
       return _repository.getAllFeedLogs();
     });
   }
 
-  Future<void> deleteFeedLog(String id) async {
+  Future<void> deleteFeedLog(FeedLog log) async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      await _repository.deleteFeedLog(id);
+      await _repository.deleteFeedLog(log.id);
+      await ref.read(feedStockProvider.notifier).revertStockTransaction(log.id);
+
+      // Recalculate population
+      await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+
       return _repository.getAllFeedLogs();
     });
   }
@@ -119,6 +165,13 @@ final feedStatsProvider = Provider<FeedStats>((ref) {
     }
   }
 
+  // Hitung Estimasi Bulan Ini
+  int daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+  int daysPassed = now.day;
+  double rataRataHarian = daysPassed > 0 ? costThisMonth / daysPassed : 0;
+  double estimasiSisa = rataRataHarian * (daysInMonth - daysPassed);
+  double totalEstimasiBulanIni = costThisMonth + estimasiSisa;
+
   return FeedStats(
     totalPakanPagiToday: totalPakanPagiToday,
     totalPakanSiangToday: totalPakanSiangToday,
@@ -128,7 +181,7 @@ final feedStatsProvider = Provider<FeedStats>((ref) {
     totalPakanThisMonth: totalPakanThisMonth,
     costToday: costToday,
     costThisWeek: costThisWeek,
-    costThisMonth: costThisMonth,
+    costThisMonth: totalEstimasiBulanIni, // Gunakan estimasi aktual
   );
 });
 
