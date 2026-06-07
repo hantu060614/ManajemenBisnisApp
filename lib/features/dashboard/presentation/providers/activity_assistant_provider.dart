@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../../../../core/services/notification_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class ActivityState {
   final List<String> feedingTimes;
@@ -27,40 +30,56 @@ class ActivityState {
   }
 }
 
-class ActivityNotifier extends StateNotifier<AsyncValue<ActivityState>> {
-  ActivityNotifier() : super(const AsyncValue.loading()) {
-    _loadData();
-  }
+final activityAssistantProvider = StreamNotifierProvider<ActivityNotifier, ActivityState>(() {
+  return ActivityNotifier();
+});
 
-  Future<void> _loadData() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Load feeding times. Default: 3 feeds (08:00, 12:00, 17:00)
-      List<String> feedingTimes = prefs.getStringList('activity_feeding_times') ?? ['08:00', '12:00', '17:00'];
-      
-      // Load completed activities date and keys
-      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final lastDate = prefs.getString('activity_last_date') ?? '';
-      
+class ActivityNotifier extends StreamNotifier<ActivityState> {
+  @override
+  Stream<ActivityState> build() {
+    final authState = ref.watch(authProvider);
+    if (authState.userId == null) {
+      return Stream.value(ActivityState(feedingTimes: ['08:00', '12:00', '17:00'], completedActivities: {}, dateStr: ''));
+    }
+
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final docRef = FirebaseFirestore.instance.collection('users').doc(authState.userId).collection('settings').doc('activity_assistant');
+
+    return docRef.snapshots().map((docSnap) {
+      List<String> feedingTimes = ['08:00', '12:00', '17:00'];
       Set<String> completed = {};
-      if (lastDate == todayStr) {
-        final completedList = prefs.getStringList('activity_completed_keys') ?? [];
-        completed = completedList.toSet();
+
+      if (docSnap.exists) {
+        final data = docSnap.data()!;
+        if (data.containsKey('feedingTimes')) {
+          feedingTimes = List<String>.from(data['feedingTimes']);
+        }
+        
+        final lastDate = data['lastDate'] as String?;
+        if (lastDate == todayStr && data.containsKey('completedActivities')) {
+          completed = Set<String>.from(data['completedActivities']);
+        } else if (lastDate != todayStr) {
+          // Trigger reset di background
+          _resetDaily(docRef, todayStr);
+        }
       } else {
-        // New day: reset completed activities and save new date
-        await prefs.setString('activity_last_date', todayStr);
-        await prefs.setStringList('activity_completed_keys', []);
+        _initDoc(docRef, feedingTimes, todayStr);
       }
-      
-      state = AsyncValue.data(ActivityState(
+
+      return ActivityState(
         feedingTimes: feedingTimes,
         completedActivities: completed,
         dateStr: todayStr,
-      ));
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
+      );
+    });
+  }
+
+  Future<void> _resetDaily(DocumentReference docRef, String todayStr) async {
+    await docRef.set({'lastDate': todayStr, 'completedActivities': []}, SetOptions(merge: true));
+  }
+
+  Future<void> _initDoc(DocumentReference docRef, List<String> feedingTimes, String todayStr) async {
+    await docRef.set({'feedingTimes': feedingTimes, 'lastDate': todayStr, 'completedActivities': []});
   }
 
   Future<void> toggleActivity(String key, bool isCompleted) async {
@@ -74,32 +93,28 @@ class ActivityNotifier extends StateNotifier<AsyncValue<ActivityState>> {
       updatedCompleted.remove(key);
     }
 
-    state = AsyncValue.data(AsyncValue.data(currentState.copyWith(completedActivities: updatedCompleted)).value!);
-
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('activity_completed_keys', updatedCompleted.toList());
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('settings').doc('activity_assistant').set({
+          'completedActivities': updatedCompleted.toList(),
+          'lastDate': currentState.dateStr,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       // log error silently
     }
   }
 
   Future<void> updateSchedule(List<String> newFeedingTimes) async {
-    final currentState = state.value;
-    if (currentState == null) return;
-
-    state = AsyncValue.data(AsyncValue.data(currentState.copyWith(feedingTimes: newFeedingTimes)).value!);
-
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList('activity_feeding_times', newFeedingTimes);
-      await NotificationService().scheduleDailyReminders(newFeedingTimes);
-    } catch (e) {
-      // log error
-    }
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('settings').doc('activity_assistant').set({
+          'feedingTimes': newFeedingTimes,
+        }, SetOptions(merge: true));
+      }
+      await NotificationService().scheduleDailyReminders(newFeedingTimes, "Kolam Utama");
+    } catch (e) {}
   }
 }
-
-final activityAssistantProvider = StateNotifierProvider<ActivityNotifier, AsyncValue<ActivityState>>((ref) {
-  return ActivityNotifier();
-});

@@ -26,6 +26,7 @@ class _ProductionFormPageState extends ConsumerState<ProductionFormPage> {
   String _type = 'Bobot Sampling'; // 'Telur', 'Susu', 'Bobot Sampling'
   String _unit = 'Gram/Ekor'; // 'Butir', 'Liter', 'Gram/Ekor'
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -94,8 +95,9 @@ class _ProductionFormPageState extends ConsumerState<ProductionFormPage> {
     }
   }
 
-  void _saveLog() {
+  void _saveLog() async {
     if (_formKey.currentState!.validate()) {
+      if (_isLoading) return;
       if (_selectedBatchId == null || _selectedBatchName == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Silakan pilih unit ternak terlebih dahulu.')),
@@ -103,31 +105,41 @@ class _ProductionFormPageState extends ConsumerState<ProductionFormPage> {
         return;
       }
 
-      final amountVal = double.tryParse(_amountController.text) ?? 0.0;
+      setState(() => _isLoading = true);
 
-      final log = ProductionLog(
-        id: widget.existingProductionLog?.id ?? const Uuid().v4(),
-        batchId: _selectedBatchId!,
-        batchName: _selectedBatchName!,
-        date: _selectedDate,
-        type: _type,
-        amount: amountVal,
-        unit: _unit,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-      );
+      try {
+        final amountVal = double.tryParse(_amountController.text) ?? 0.0;
 
-      if (widget.existingProductionLog == null) {
-        ref.read(productionProvider.notifier).addProductionLog(log);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Catatan produksi berhasil ditambahkan!')),
+        final log = ProductionLog(
+          id: widget.existingProductionLog?.id ?? const Uuid().v4(),
+          batchId: _selectedBatchId!,
+          batchName: _selectedBatchName!,
+          date: _selectedDate,
+          type: _type,
+          amount: amountVal,
+          unit: _unit,
+          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         );
-      } else {
-        ref.read(productionProvider.notifier).updateProductionLog(log);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Catatan produksi berhasil diperbarui!')),
-        );
+
+        if (widget.existingProductionLog == null) {
+          await ref.read(productionProvider.notifier).addProductionLog(log);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Catatan produksi berhasil ditambahkan!')),
+            );
+          }
+        } else {
+          await ref.read(productionProvider.notifier).updateProductionLog(log);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Catatan produksi berhasil diperbarui!')),
+            );
+          }
+        }
+        if (mounted) context.pop();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-      context.pop();
     }
   }
 
@@ -292,17 +304,19 @@ class _ProductionFormPageState extends ConsumerState<ProductionFormPage> {
 
                 // Save Button
                 ElevatedButton(
-                  onPressed: _saveLog,
+                  onPressed: _isLoading ? null : _saveLog,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Simpan Catatan Produksi',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Simpan Catatan Produksi',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

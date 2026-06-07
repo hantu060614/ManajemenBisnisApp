@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -29,15 +28,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      final appDir = await getApplicationDocumentsDirectory();
-      final fileName = 'profile_pic_${DateTime.now().millisecondsSinceEpoch}${p.extension(pickedFile.path)}';
-      final savedImage = await File(pickedFile.path).copy('${appDir.path}/$fileName');
-
-      final authState = ref.read(authProvider);
-      ref.read(authProvider.notifier).updateProfile(
-        _nameController.text.isNotEmpty ? _nameController.text : (authState.name ?? 'Peternak'),
-        savedImage.path,
-      );
+      await ref.read(authProvider.notifier).uploadProfilePicture(pickedFile.path);
+      if (mounted) {
+        final error = ref.read(authProvider).error;
+        if (error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto profil berhasil diperbarui!')));
+        }
+      }
     }
   }
 
@@ -166,12 +165,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: AppColors.primaryLight.withOpacity(0.3),
-                    backgroundImage: authState.photoUrl != null && (authState.photoUrl!.startsWith('http') || File(authState.photoUrl!).existsSync())
-                        ? (authState.photoUrl!.startsWith('http') ? NetworkImage(authState.photoUrl!) : FileImage(File(authState.photoUrl!))) as ImageProvider
+                    backgroundImage: authState.photoUrl != null && authState.photoUrl!.startsWith('http')
+                        ? CachedNetworkImageProvider(authState.photoUrl!)
                         : null,
-                    child: (authState.photoUrl == null || (!authState.photoUrl!.startsWith('http') && !File(authState.photoUrl!).existsSync())) 
-                        ? const Icon(Icons.person, size: 60, color: AppColors.primary) 
-                        : null,
+                    child: authState.isLoading
+                        ? const CircularProgressIndicator()
+                        : (authState.photoUrl == null || !authState.photoUrl!.startsWith('http')) 
+                            ? const Icon(Icons.person, size: 60, color: AppColors.primary) 
+                            : null,
                   ),
                   Positioned(
                     bottom: 0,

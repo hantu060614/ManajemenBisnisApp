@@ -27,6 +27,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
   String _type = 'income'; // 'income' or 'expense'
   String _selectedCategory = 'Penjualan ternak';
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   final List<String> _incomeCategories = [
     'Penjualan ternak',
@@ -106,6 +107,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
 
   void _saveCashflow() async {
     if (_formKey.currentState!.validate()) {
+      if (_isLoading) return;
       if (_type == 'expense' && _selectedCategory == 'Pakan') {
         if (_feedTypeController.text.trim().isEmpty || _feedAmountController.text.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -115,55 +117,61 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
         }
       }
 
-      final amount = double.parse(_amountController.text.replaceAll('.', ''));
-      final cashflowId = widget.existingCashflow?.id ?? const Uuid().v4();
-      final cashflow = Cashflow(
-        id: cashflowId,
-        type: _type,
-        amount: amount,
-        category: _selectedCategory,
-        description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
-        date: _selectedDate,
-      );
+      setState(() => _isLoading = true);
 
-      if (widget.existingCashflow == null) {
-        ref.read(cashflowProvider.notifier).addCashflow(cashflow);
+      try {
+        final amount = double.parse(_amountController.text.replaceAll('.', ''));
+        final cashflowId = widget.existingCashflow?.id ?? const Uuid().v4();
+        final cashflow = Cashflow(
+          id: cashflowId,
+          type: _type,
+          amount: amount,
+          category: _selectedCategory,
+          description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
+          date: _selectedDate,
+        );
 
-        // Integrasi Stok Pakan
-        if (_type == 'expense' && _selectedCategory == 'Pakan') {
-          final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
-          if (feedAmount > 0) {
-            await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
-              _feedTypeController.text.trim(),
-              feedAmount,
-              amount,
-              cashflowId,
-              _selectedDate,
-            );
-          }
-        }
-      } else {
-        ref.read(cashflowProvider.notifier).updateCashflow(cashflow);
-        
-        // Integrasi Stok Pakan (Revert lama, masukkan baru)
-        if (_type == 'expense' && _selectedCategory == 'Pakan') {
-          await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
-          final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
-          if (feedAmount > 0) {
-            await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
-              _feedTypeController.text.trim(),
-              feedAmount,
-              amount,
-              cashflowId,
-              _selectedDate,
-            );
+        if (widget.existingCashflow == null) {
+          await ref.read(cashflowProvider.notifier).addCashflow(cashflow);
+
+          // Integrasi Stok Pakan
+          if (_type == 'expense' && _selectedCategory == 'Pakan') {
+            final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
+            if (feedAmount > 0) {
+              await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
+                _feedTypeController.text.trim(),
+                feedAmount,
+                amount,
+                cashflowId,
+                _selectedDate,
+              );
+            }
           }
         } else {
-          // Jika diubah jadi bukan pakan, cukup revert
-          await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
+          await ref.read(cashflowProvider.notifier).updateCashflow(cashflow);
+          
+          // Integrasi Stok Pakan (Revert lama, masukkan baru)
+          if (_type == 'expense' && _selectedCategory == 'Pakan') {
+            await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
+            final feedAmount = double.tryParse(_feedAmountController.text) ?? 0.0;
+            if (feedAmount > 0) {
+              await ref.read(feedStockProvider.notifier).addOrUpdateStockFromPurchase(
+                _feedTypeController.text.trim(),
+                feedAmount,
+                amount,
+                cashflowId,
+                _selectedDate,
+              );
+            }
+          } else {
+            // Jika diubah jadi bukan pakan, cukup revert
+            await ref.read(feedStockProvider.notifier).revertStockTransaction(cashflowId);
+          }
         }
+        if (mounted) context.pop();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-      if (mounted) context.pop();
     }
   }
 
@@ -395,17 +403,19 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: _saveCashflow,
+                  onPressed: _isLoading ? null : _saveCashflow,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Simpan Transaksi',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Simpan Transaksi',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

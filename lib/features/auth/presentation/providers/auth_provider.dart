@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'dart:async';
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
 });
@@ -47,12 +50,22 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
+  StreamSubscription? _authSubscription;
+  StreamSubscription? _userDocSubscription;
+
   AuthNotifier() : super(AuthState()) {
     _checkAutoLogin();
   }
 
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    _userDocSubscription?.cancel();
+    super.dispose();
+  }
+
   void _checkAutoLogin() {
-    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (user != null) {
         state = state.copyWith(
           isAuthenticated: true,
@@ -61,8 +74,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
           name: user.displayName ?? 'Peternak',
           photoUrl: user.photoURL,
         );
+        _listenToUserDoc(user.uid);
       } else {
+        _userDocSubscription?.cancel();
         state = AuthState();
+      }
+    });
+  }
+
+  void _listenToUserDoc(String uid) {
+    _userDocSubscription?.cancel();
+    _userDocSubscription = FirebaseFirestore.instance.collection('users').doc(uid).snapshots().listen((doc) {
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null) {
+          state = state.copyWith(
+            name: data['name'] ?? state.name,
+            photoUrl: data['photoURL'] ?? state.photoUrl,
+          );
+        }
       }
     });
   }
@@ -121,6 +151,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (photoPath != null) {
           await user.updatePhotoURL(photoPath);
         }
+        
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'name': name,
+          if (photoPath != null) 'photoURL': photoPath,
+        }, SetOptions(merge: true));
+
         state = state.copyWith(
           name: name,
           photoUrl: photoPath ?? state.photoUrl,
@@ -128,6 +164,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } catch (e) {
       state = state.copyWith(error: 'Gagal memperbarui profil: \$e');
+    }
+  }
+
+  Future<void> uploadProfilePicture(String localPath) async {
+    if (state.userId == null) return;
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final user = FirebaseAuth.instance.currentUser!;
+      
+      // Compress image
+      final compressedData = await FlutterImageCompress.compressWithFile(
+        localPath,
+        minWidth: 800,
+        minHeight: 800,
+        quality: 85,
+      );
+
+      if (compressedData == null) throw 'Gagal mengompresi gambar.';
+
+      // Upload to Firebase Storage
+      final storageRef = FirebaseStorage.instance.ref().child('profiles/${user.uid}/avatar.jpg');
+      
+      final uploadTask = storageRef.putData(
+        compressedData,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
+      
+      final snapshot = await uploadTask;
+      final downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Save to Firestore and Auth
+      await user.updatePhotoURL(downloadUrl);
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'photoURL': downloadUrl,
+      }, SetOptions(merge: true));
+
+      state = state.copyWith(
+        photoUrl: downloadUrl,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Gagal mengunggah foto profil. Silakan coba lagi.',
+      );
     }
   }
 

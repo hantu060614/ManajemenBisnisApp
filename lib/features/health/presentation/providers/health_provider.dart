@@ -1,61 +1,66 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/repositories/health_repository.dart';
 import '../../domain/models/health_log.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 final healthRepositoryProvider = Provider<HealthRepository>((ref) {
   return HealthRepository();
 });
 
-final healthProvider = AsyncNotifierProvider<HealthNotifier, List<HealthLog>>(() {
+final healthProvider = StreamNotifierProvider<HealthNotifier, List<HealthLog>>(() {
   return HealthNotifier();
 });
 
-class HealthNotifier extends AsyncNotifier<List<HealthLog>> {
+class HealthNotifier extends StreamNotifier<List<HealthLog>> {
   HealthRepository get _repository => ref.read(healthRepositoryProvider);
 
   @override
-  Future<List<HealthLog>> build() async {
-    return _repository.getAllHealthLogs();
+  Stream<List<HealthLog>> build() {
+    final authState = ref.watch(authProvider);
+    if (authState.userId == null) return Stream.value([]);
+    
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(authState.userId)
+        .collection('health_logs')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => HealthLog.fromMap(doc.data())).toList());
   }
 
   Future<void> addHealthLog(HealthLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.insertHealthLog(log);
-      
       if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
         await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
       }
-      
-      return _repository.getAllHealthLogs();
-    });
+    } catch (e) {
+      // log error
+    }
   }
 
   Future<void> updateHealthLog(HealthLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.updateHealthLog(log);
-
       if (log.type.toLowerCase() == 'kematian') {
         await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
       }
-
-      return _repository.getAllHealthLogs();
-    });
+    } catch (e) {
+      // log error
+    }
   }
 
   Future<void> deleteHealthLog(HealthLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.deleteHealthLog(log);
-
       if (log.type.toLowerCase() == 'kematian' && log.amount > 0) {
         await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
       }
-
-      return _repository.getAllHealthLogs();
-    });
+    } catch (e) {
+      // log error
+    }
   }
 }
 

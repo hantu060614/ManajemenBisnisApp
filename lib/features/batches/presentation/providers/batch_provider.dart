@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/batch_repository.dart';
 import '../../domain/models/batch.dart';
@@ -12,26 +13,30 @@ final batchRepositoryProvider = Provider<BatchRepository>((ref) {
   return BatchRepository();
 });
 
-final batchProvider = AsyncNotifierProvider<BatchNotifier, List<Batch>>(() {
+final batchProvider = StreamNotifierProvider<BatchNotifier, List<Batch>>(() {
   return BatchNotifier();
 });
 
-
-class BatchNotifier extends AsyncNotifier<List<Batch>> {
+class BatchNotifier extends StreamNotifier<List<Batch>> {
   BatchRepository get _repository => ref.read(batchRepositoryProvider);
 
   @override
-  Future<List<Batch>> build() async {
+  Stream<List<Batch>> build() {
     final authState = ref.watch(authProvider);
     if (!authState.isAuthenticated || authState.userId == null) {
-      return [];
+      return Stream.value([]);
     }
-    return _repository.getAllBatches();
+    
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(authState.userId)
+        .collection('batches')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => Batch.fromMap(doc.data())).toList());
   }
 
   Future<void> addBatch(Batch batch) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.insertBatch(batch);
       
       if (batch.initialCapital > 0) {
@@ -46,33 +51,32 @@ class BatchNotifier extends AsyncNotifier<List<Batch>> {
         );
         await cashflowRepo.insertCashflow(cashflow);
       }
-
-      return _repository.getAllBatches();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> updateBatch(Batch batch) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.updateBatch(batch);
-      return _repository.getAllBatches();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> deleteBatch(String id) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.deleteBatch(id);
-      return _repository.getAllBatches();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> recalculateBatchPopulation(String batchId) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       final batches = await _repository.getAllBatches();
       final batchIndex = batches.indexWhere((b) => b.id == batchId);
-      if (batchIndex == -1) return batches;
+      if (batchIndex == -1) return;
       final batch = batches[batchIndex];
 
       final feedRepo = FeedRepository();
@@ -107,9 +111,9 @@ class BatchNotifier extends AsyncNotifier<List<Batch>> {
         );
         await _repository.updateBatch(updatedBatch);
       }
-      
-      return _repository.getAllBatches();
-    });
+    } catch (e) {
+      // log error
+    }
   }
 
 }

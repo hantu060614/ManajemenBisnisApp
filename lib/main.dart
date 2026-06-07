@@ -5,7 +5,8 @@ import 'core/routing/app_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/services/notification_service.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,11 +33,20 @@ void main() async {
     try {
       final notificationService = NotificationService();
       await notificationService.init();
-      await notificationService.requestPermissions();
+      await notificationService.initNotificationPermissions();
       
-      final prefs = await SharedPreferences.getInstance();
-      final feedingTimes = prefs.getStringList('activity_feeding_times') ?? ['08:00', '12:00', '17:00'];
-      await notificationService.scheduleDailyReminders(feedingTimes);
+      List<String> feedingTimes = ['08:00', '12:00', '17:00'];
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final docSnap = await FirebaseFirestore.instance.collection('users').doc(user.uid).collection('settings').doc('activity_assistant').get();
+        if (docSnap.exists) {
+          final data = docSnap.data()!;
+          if (data.containsKey('feedingTimes')) {
+            feedingTimes = List<String>.from(data['feedingTimes']);
+          }
+        }
+      }
+      await notificationService.scheduleDailyReminders(feedingTimes, "Kolam Utama");
     } catch (e) {
       debugPrint('Notification init failed: $e');
     }

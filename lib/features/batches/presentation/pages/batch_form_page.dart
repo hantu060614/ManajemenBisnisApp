@@ -35,6 +35,7 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
 
   DateTime _selectedDate = DateTime.now();
   bool _isActive = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -124,26 +125,33 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
     );
   }
 
-  void _saveBatch() {
+  void _saveBatch() async {
     if (_formKey.currentState!.validate()) {
-      final batch = Batch(
-        id: widget.existingBatch?.id ?? const Uuid().v4(),
-        name: _nameController.text,
-        animalCategory: _selectedCategory,
-        animalType: _selectedAnimalType,
-        initialCount: int.parse(_initialCountController.text),
-        currentCount: widget.existingBatch?.currentCount ?? int.parse(_initialCountController.text),
-        startDate: _selectedDate,
-        initialCapital: double.tryParse(_initialCapitalController.text.replaceAll('.', '')) ?? 0.0,
-        isActive: _isActive,
-      );
+      if (_isLoading) return;
+      setState(() => _isLoading = true);
 
-      if (widget.existingBatch == null) {
-        ref.read(batchProvider.notifier).addBatch(batch);
-      } else {
-        ref.read(batchProvider.notifier).updateBatch(batch);
+      try {
+        final batch = Batch(
+          id: widget.existingBatch?.id ?? const Uuid().v4(),
+          name: _nameController.text,
+          animalCategory: _selectedCategory,
+          animalType: _selectedAnimalType,
+          initialCount: int.parse(_initialCountController.text),
+          currentCount: widget.existingBatch?.currentCount ?? int.parse(_initialCountController.text),
+          startDate: _selectedDate,
+          initialCapital: double.tryParse(_initialCapitalController.text.replaceAll('.', '')) ?? 0.0,
+          isActive: _isActive,
+        );
+
+        if (widget.existingBatch == null) {
+          await ref.read(batchProvider.notifier).addBatch(batch);
+        } else {
+          await ref.read(batchProvider.notifier).updateBatch(batch);
+        }
+        if (mounted) context.pop();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-      context.pop();
     }
   }
 
@@ -296,17 +304,19 @@ class _BatchFormPageState extends ConsumerState<BatchFormPage> {
                 ),
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: _saveBatch,
+                  onPressed: _isLoading ? null : _saveBatch,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: Text(
-                    widget.existingBatch == null ? 'Simpan Unit Ternak' : 'Perbarui Data',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(
+                          widget.existingBatch == null ? 'Simpan Unit Ternak' : 'Perbarui Data',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

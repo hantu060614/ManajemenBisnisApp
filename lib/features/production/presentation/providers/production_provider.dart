@@ -1,44 +1,55 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/repositories/production_repository.dart';
 import '../../domain/models/production_log.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 final productionRepositoryProvider = Provider<ProductionRepository>((ref) {
   return ProductionRepository();
 });
 
-final productionProvider = AsyncNotifierProvider<ProductionNotifier, List<ProductionLog>>(() {
+final productionProvider = StreamNotifierProvider<ProductionNotifier, List<ProductionLog>>(() {
   return ProductionNotifier();
 });
 
-class ProductionNotifier extends AsyncNotifier<List<ProductionLog>> {
+class ProductionNotifier extends StreamNotifier<List<ProductionLog>> {
   ProductionRepository get _repository => ref.read(productionRepositoryProvider);
 
   @override
-  Future<List<ProductionLog>> build() async {
-    return _repository.getAllProductionLogs();
+  Stream<List<ProductionLog>> build() {
+    final authState = ref.watch(authProvider);
+    if (authState.userId == null) return Stream.value([]);
+    
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(authState.userId)
+        .collection('production_logs')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => ProductionLog.fromMap(doc.data())).toList());
   }
 
   Future<void> addProductionLog(ProductionLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.insertProductionLog(log);
-      return _repository.getAllProductionLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> updateProductionLog(ProductionLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.updateProductionLog(log);
-      return _repository.getAllProductionLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> deleteProductionLog(String id) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.deleteProductionLog(id);
-      return _repository.getAllProductionLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 }

@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pengaturan Keamanan Default: Tolak semua akses jika tidak tertulis
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hanya izinkan pengguna yang telah login untuk mengakses dokumen UID mereka sendiri
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Semua subkoleksi (seperti feed_logs, cashflow, batches, settings) juga mewarisi aturan ini
+      match /{subcollection}/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

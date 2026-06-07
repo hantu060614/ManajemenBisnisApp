@@ -1,23 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/repositories/feed_stock_repository.dart';
 import '../../domain/models/feed_stock.dart';
 import '../../domain/models/feed_stock_transaction.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
 
 final feedStockRepositoryProvider = Provider<FeedStockRepository>((ref) {
   return FeedStockRepository();
 });
 
-final feedStockProvider = AsyncNotifierProvider<FeedStockNotifier, List<FeedStock>>(() {
+final feedStockProvider = StreamNotifierProvider<FeedStockNotifier, List<FeedStock>>(() {
   return FeedStockNotifier();
 });
 
-class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
+class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
   FeedStockRepository get _repository => ref.read(feedStockRepositoryProvider);
 
   @override
-  Future<List<FeedStock>> build() async {
-    return _repository.getAllFeedStocks();
+  Stream<List<FeedStock>> build() {
+    final authState = ref.watch(authProvider);
+    if (authState.userId == null) return Stream.value([]);
+    
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(authState.userId)
+        .collection('feed_stocks')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => FeedStock.fromMap(doc.data())).toList());
   }
 
   Future<void> addOrUpdateStockFromPurchase(String feedType, double amountKg, double totalPrice, String cashflowId, DateTime date) async {
@@ -73,8 +83,7 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
     );
     await _repository.insertTransaction(transaction);
 
-    // Refresh state
-    state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
+    // Refresh state tidak diperlukan karena Stream otomatis update
     ref.invalidate(feedStockTransactionsProvider);
   }
 
@@ -105,8 +114,7 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
     );
     await _repository.insertTransaction(transaction);
 
-    // Refresh state
-    state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
+    // Refresh state tidak diperlukan karena Stream otomatis update
     ref.invalidate(feedStockTransactionsProvider);
   }
 
@@ -146,8 +154,7 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
       }
       await _repository.deleteTransaction(tx.id);
     }
-    
-    state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
+    // Refresh state tidak diperlukan karena Stream otomatis update
     ref.invalidate(feedStockTransactionsProvider);
   }
 
@@ -182,8 +189,7 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
       await _repository.upsertFeedStock(newStock);
     }
     await _repository.deleteTransaction(tx.id);
-    
-    state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
+    // Refresh state tidak diperlukan karena Stream otomatis update
     ref.invalidate(feedStockTransactionsProvider);
   }
 }

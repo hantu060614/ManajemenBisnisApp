@@ -1,35 +1,40 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../data/repositories/feed_repository.dart';
 import '../../domain/models/feed_log.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
 import './feed_stock_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository();
 });
 
-final feedProvider = AsyncNotifierProvider<FeedNotifier, List<FeedLog>>(() {
+final feedProvider = StreamNotifierProvider<FeedNotifier, List<FeedLog>>(() {
   return FeedNotifier();
 });
 
-class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
+class FeedNotifier extends StreamNotifier<List<FeedLog>> {
   FeedRepository get _repository => ref.read(feedRepositoryProvider);
 
   @override
-  Future<List<FeedLog>> build() async {
-    return _repository.getAllFeedLogs();
+  Stream<List<FeedLog>> build() {
+    final authState = ref.watch(authProvider);
+    if (authState.userId == null) return Stream.value([]);
+    
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(authState.userId)
+        .collection('feed_logs')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => FeedLog.fromMap(doc.data())).toList());
   }
 
   Future<void> addFeedLog(FeedLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.insertFeedLog(log);
 
-      // Deduct stock
-      // We assume feedType here matches the stock ID or we need to find stock.
-      // But log.feedType currently stores the string name. 
-      // We need the ID if we use feedStockProvider deductStockFromUsage.
-      // Wait, let's find the stock by feedType first to get the ID.
       final stocks = ref.read(feedStockProvider).value ?? [];
       final stock = stocks.where((s) => s.feedType == log.feedType).firstOrNull;
       if (stock != null) {
@@ -41,20 +46,16 @@ class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
           log.date,
         );
       }
-
-      // Recalculate population
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
-      
-      return _repository.getAllFeedLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> updateFeedLog(FeedLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.updateFeedLog(log);
 
-      // Integrasi Stok Pakan (Revert lama, masukkan baru)
       await ref.read(feedStockProvider.notifier).revertStockTransaction(log.id);
       final stocks = ref.read(feedStockProvider).value ?? [];
       final stock = stocks.where((s) => s.feedType == log.feedType).firstOrNull;
@@ -67,25 +68,20 @@ class FeedNotifier extends AsyncNotifier<List<FeedLog>> {
           log.date,
         );
       }
-
-      // Recalculate population
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
-
-      return _repository.getAllFeedLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 
   Future<void> deleteFeedLog(FeedLog log) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
+    try {
       await _repository.deleteFeedLog(log.id);
       await ref.read(feedStockProvider.notifier).revertStockTransaction(log.id);
-
-      // Recalculate population
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
-
-      return _repository.getAllFeedLogs();
-    });
+    } catch (e) {
+      // throw error
+    }
   }
 }
 

@@ -25,6 +25,7 @@ class _HealthFormPageState extends ConsumerState<HealthFormPage> {
   String? _selectedBatchName;
   String _selectedType = 'Obat'; // 'Vaksin', 'Obat', 'Penyakit', 'Kematian'
   DateTime _selectedDate = DateTime.now();
+  bool _isLoading = false;
 
   final List<String> _healthTypes = ['Vaksin', 'Obat', 'Penyakit', 'Kematian'];
 
@@ -75,8 +76,9 @@ class _HealthFormPageState extends ConsumerState<HealthFormPage> {
     }
   }
 
-  void _saveLog() {
+  void _saveLog() async {
     if (_formKey.currentState!.validate()) {
+      if (_isLoading) return;
       if (_selectedBatchId == null || _selectedBatchName == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Silakan pilih unit ternak terlebih dahulu.')),
@@ -84,30 +86,40 @@ class _HealthFormPageState extends ConsumerState<HealthFormPage> {
         return;
       }
 
-      final amountVal = int.tryParse(_amountController.text) ?? 0;
+      setState(() => _isLoading = true);
 
-      final healthLog = HealthLog(
-        id: widget.existingHealthLog?.id ?? const Uuid().v4(),
-        batchId: _selectedBatchId!,
-        batchName: _selectedBatchName!,
-        date: _selectedDate,
-        type: _selectedType,
-        amount: amountVal,
-        notes: _notesController.text.trim(),
-      );
+      try {
+        final amountVal = int.tryParse(_amountController.text) ?? 0;
 
-      if (widget.existingHealthLog == null) {
-        ref.read(healthProvider.notifier).addHealthLog(healthLog);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Catatan kesehatan berhasil ditambahkan!')),
+        final healthLog = HealthLog(
+          id: widget.existingHealthLog?.id ?? const Uuid().v4(),
+          batchId: _selectedBatchId!,
+          batchName: _selectedBatchName!,
+          date: _selectedDate,
+          type: _selectedType,
+          amount: amountVal,
+          notes: _notesController.text.trim(),
         );
-      } else {
-        ref.read(healthProvider.notifier).updateHealthLog(healthLog);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Catatan kesehatan berhasil diperbarui!')),
-        );
+
+        if (widget.existingHealthLog == null) {
+          await ref.read(healthProvider.notifier).addHealthLog(healthLog);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Catatan kesehatan berhasil ditambahkan!')),
+            );
+          }
+        } else {
+          await ref.read(healthProvider.notifier).updateHealthLog(healthLog);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Catatan kesehatan berhasil diperbarui!')),
+            );
+          }
+        }
+        if (mounted) context.pop();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-      context.pop();
     }
   }
 
@@ -275,17 +287,19 @@ class _HealthFormPageState extends ConsumerState<HealthFormPage> {
 
                 // Save Button
                 ElevatedButton(
-                  onPressed: _saveLog,
+                  onPressed: _isLoading ? null : _saveLog,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Simpan Catatan Kesehatan',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Simpan Catatan Kesehatan',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ],
             ),

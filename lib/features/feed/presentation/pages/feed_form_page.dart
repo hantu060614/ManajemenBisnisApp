@@ -36,6 +36,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
   
   String? _selectedFeedType;
   double _availableStockKg = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -164,8 +165,9 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
     }
   }
 
-  void _saveLog() {
+  void _saveLog() async {
     if (_formKey.currentState!.validate()) {
+      if (_isLoading) return;
       if (_selectedBatchId == null || _selectedBatchName == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Silakan pilih unit ternak terlebih dahulu.')),
@@ -193,34 +195,44 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
         return;
       }
 
-      final feedLog = FeedLog(
-        id: widget.existingFeedLog?.id ?? const Uuid().v4(),
-        batchId: _selectedBatchId!,
-        batchName: _selectedBatchName!,
-        date: _selectedDate,
-        feedType: _selectedFeedType ?? '',
-        amountKg: amountKg,
-        amountOns: double.parse(_amountOnsController.text),
-        amountGram: double.parse(_amountGramController.text),
-        pricePerKg: double.parse(_priceController.text.replaceAll('.', '')),
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
-        feedingTime: _feedingTime,
-        mortalityCount: int.tryParse(_mortalityController.text) ?? 0,
-        estimatedWeight: double.tryParse(_estimatedWeightController.text) ?? 0.0,
-      );
+      setState(() => _isLoading = true);
 
-      if (widget.existingFeedLog == null) {
-        ref.read(feedProvider.notifier).addFeedLog(feedLog);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pencatatan pakan berhasil ditambahkan!')),
+      try {
+        final feedLog = FeedLog(
+          id: widget.existingFeedLog?.id ?? const Uuid().v4(),
+          batchId: _selectedBatchId!,
+          batchName: _selectedBatchName!,
+          date: _selectedDate,
+          feedType: _selectedFeedType ?? '',
+          amountKg: amountKg,
+          amountOns: double.parse(_amountOnsController.text),
+          amountGram: double.parse(_amountGramController.text),
+          pricePerKg: double.parse(_priceController.text.replaceAll('.', '')),
+          notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+          feedingTime: _feedingTime,
+          mortalityCount: int.tryParse(_mortalityController.text) ?? 0,
+          estimatedWeight: double.tryParse(_estimatedWeightController.text) ?? 0.0,
         );
-      } else {
-        ref.read(feedProvider.notifier).updateFeedLog(feedLog);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pencatatan pakan berhasil diperbarui!')),
-        );
+
+        if (widget.existingFeedLog == null) {
+          await ref.read(feedProvider.notifier).addFeedLog(feedLog);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Pencatatan pakan berhasil ditambahkan!')),
+            );
+          }
+        } else {
+          await ref.read(feedProvider.notifier).updateFeedLog(feedLog);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Pencatatan pakan berhasil diperbarui!')),
+            );
+          }
+        }
+        if (mounted) context.pop();
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
-      context.pop();
     }
   }
 
@@ -585,14 +597,16 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
 
                 // Simpan Button
                 ElevatedButton(
-                  onPressed: _saveLog,
+                  onPressed: _isLoading ? null : _saveLog,
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 56),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text('Simpan Catatan Pakan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Simpan Catatan Pakan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),

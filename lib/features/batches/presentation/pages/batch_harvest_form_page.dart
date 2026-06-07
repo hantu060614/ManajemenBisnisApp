@@ -36,6 +36,7 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
 
   double _total = 0;
   late bool _isLargeAnimal;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -88,56 +89,65 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
     super.dispose();
   }
 
-  void _saveHarvest() {
+  void _saveHarvest() async {
     if (_formKey.currentState!.validate()) {
-      // 1. Mark batch as inactive
-      final updatedBatch = Batch(
-        id: widget.batch.id,
-        name: widget.batch.name,
-        animalCategory: widget.batch.animalCategory,
-        animalType: widget.batch.animalType,
-        initialCount: widget.batch.initialCount,
-        currentCount: widget.batch.currentCount,
-        startDate: widget.batch.startDate,
-        initialCapital: widget.batch.initialCapital,
-        isActive: false, // End cycle
-        synced: widget.batch.synced,
-      );
-      ref.read(batchProvider.notifier).updateBatch(updatedBatch);
+      if (_isLoading) return;
+      setState(() => _isLoading = true);
 
-      // 2. Add cashflow income
-      final priceStr = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(double.tryParse(_priceController.text) ?? 0);
-      String desc = '';
+      try {
+        // 1. Mark batch as inactive
+        final updatedBatch = Batch(
+          id: widget.batch.id,
+          name: widget.batch.name,
+          animalCategory: widget.batch.animalCategory,
+          animalType: widget.batch.animalType,
+          initialCount: widget.batch.initialCount,
+          currentCount: widget.batch.currentCount,
+          startDate: widget.batch.startDate,
+          initialCapital: widget.batch.initialCapital,
+          isActive: false, // End cycle
+          synced: widget.batch.synced,
+        );
+        await ref.read(batchProvider.notifier).updateBatch(updatedBatch);
 
-      if (_isLargeAnimal) {
-        final heads = _headCountController.text;
-        if (_salesSystem == 'Per Ekor') {
-          desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Dijual $heads Ekor x $priceStr/Ekor';
+        // 2. Add cashflow income
+        final priceStr = NumberFormat.currency(locale: 'id', symbol: 'Rp ', decimalDigits: 0).format(double.tryParse(_priceController.text) ?? 0);
+        String desc = '';
+
+        if (_isLargeAnimal) {
+          final heads = _headCountController.text;
+          if (_salesSystem == 'Per Ekor') {
+            desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Dijual $heads Ekor x $priceStr/Ekor';
+          } else {
+            final weight = _totalWeightController.text;
+            desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Dijual $heads Ekor (Timbangan: $weight Kg) x $priceStr/Kg';
+          }
         } else {
-          final weight = _totalWeightController.text;
-          desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Dijual $heads Ekor (Timbangan: $weight Kg) x $priceStr/Kg';
+          final qty = _quantityController.text;
+          desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Total: $qty $_selectedUnit x $priceStr/$_selectedUnit';
         }
-      } else {
-        final qty = _quantityController.text;
-        desc = 'Panen ${widget.batch.name} - ${_notesController.text}. Total: $qty $_selectedUnit x $priceStr/$_selectedUnit';
-      }
-      
-      final cashflow = Cashflow(
-        id: const Uuid().v4(),
-        type: 'income',
-        amount: _total,
-        category: 'Panen',
-        description: desc,
-        date: DateTime.now(),
-      );
-      
-      ref.read(cashflowProvider.notifier).addCashflow(cashflow);
+        
+        final cashflow = Cashflow(
+          id: const Uuid().v4(),
+          type: 'income',
+          amount: _total,
+          category: 'Panen',
+          description: desc,
+          date: DateTime.now(),
+        );
+        
+        await ref.read(cashflowProvider.notifier).addCashflow(cashflow);
 
-      // 3. Show success and back
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Panen berhasil dicatat dan siklus diakhiri!')),
-      );
-      context.pop();
+        // 3. Show success and back
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Panen berhasil dicatat dan siklus diakhiri!')),
+          );
+          context.pop();
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -351,11 +361,13 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _saveHarvest,
+                onPressed: _isLoading ? null : _saveHarvest,
                 style: ElevatedButton.styleFrom(
                   minimumSize: const Size(double.infinity, 56),
                 ),
-                child: const Text('Simpan & Akhiri Siklus'),
+                child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Simpan & Akhiri Siklus'),
               ),
             ],
           ),

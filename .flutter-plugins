@@ -1,6 +1,7 @@
 # This is a generated file; do not edit or check into version control.
 cloud_firestore=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\cloud_firestore-6.3.0\\
 cloud_firestore_web=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\cloud_firestore_web-5.3.0\\
+device_info_plus=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\device_info_plus-11.3.0\\
 file_selector_linux=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_selector_linux-0.9.3+2\\
 file_selector_macos=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_selector_macos-0.9.4+2\\
 file_selector_windows=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\file_selector_windows-0.9.3+4\\
@@ -8,6 +9,13 @@ firebase_auth=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\fire
 firebase_auth_web=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_auth_web-6.1.5\\
 firebase_core=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_core-4.7.0\\
 firebase_core_web=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_core_web-3.6.0\\
+firebase_storage=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_storage-13.3.0\\
+firebase_storage_web=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\firebase_storage_web-3.11.5\\
+flutter_image_compress=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_image_compress-2.4.0\\
+flutter_image_compress_common=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_image_compress_common-1.0.6\\
+flutter_image_compress_macos=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_image_compress_macos-1.0.3\\
+flutter_image_compress_ohos=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_image_compress_ohos-0.0.3\\
+flutter_image_compress_web=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_image_compress_web-0.1.5\\
 flutter_local_notifications=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_local_notifications-19.5.0\\
 flutter_local_notifications_linux=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_local_notifications_linux-6.0.0\\
 flutter_local_notifications_windows=C:\\Users\\USER\\AppData\\Local\\Pub\\Cache\\hosted\\pub.dev\\flutter_local_notifications_windows-1.0.3\\
