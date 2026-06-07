@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -27,10 +29,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      final appDir = await getApplicationDocumentsDirectory();
+      final fileName = 'profile_pic_${DateTime.now().millisecondsSinceEpoch}${p.extension(pickedFile.path)}';
+      final savedImage = await File(pickedFile.path).copy('${appDir.path}/$fileName');
+
       final authState = ref.read(authProvider);
       ref.read(authProvider.notifier).updateProfile(
         _nameController.text.isNotEmpty ? _nameController.text : (authState.name ?? 'Peternak'),
-        pickedFile.path,
+        savedImage.path,
       );
     }
   }

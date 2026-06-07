@@ -32,9 +32,10 @@ class NotificationService {
 
   Future<void> requestPermissions() async {
     if (Platform.isAndroid) {
-      await _flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.requestNotificationsPermission();
+      final androidImplementation = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await androidImplementation?.requestNotificationsPermission();
+      await androidImplementation?.requestExactAlarmsPermission();
     }
   }
 
@@ -77,7 +78,7 @@ class NotificationService {
       if (parts.length == 2) {
         final hour = int.tryParse(parts[0]) ?? 8;
         final minute = int.tryParse(parts[1]) ?? 0;
-        var scheduledFeed = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+        var scheduledFeed = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute).subtract(const Duration(minutes: 5));
         if (scheduledFeed.isBefore(now)) scheduledFeed = scheduledFeed.add(const Duration(days: 1));
         
         await _flutterLocalNotificationsPlugin.zonedSchedule(
