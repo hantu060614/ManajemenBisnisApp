@@ -205,9 +205,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
     } catch (e) {
+      String errorMessage = 'Gagal mengunggah foto profil.';
+      if (e is FirebaseException) {
+        if (e.code == 'unauthorized') {
+          errorMessage = 'Gagal: Akses ditolak. Cek Firebase Storage Rules.';
+        } else {
+          errorMessage = 'Gagal: ${e.message}';
+        }
+      } else {
+        errorMessage = 'Gagal: ${e.toString()}';
+      }
+      
       state = state.copyWith(
         isLoading: false,
-        error: 'Gagal mengunggah foto profil. Silakan coba lagi.',
+        error: errorMessage,
       );
     }
   }

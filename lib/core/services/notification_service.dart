@@ -106,8 +106,8 @@ class NotificationService {
         
         await _flutterLocalNotificationsPlugin.zonedSchedule(
           notifId++,
-          '⏰ Persiapan Jadwal Pakan — \$batchName',
-          'Jadwal pakan pukul \${feedingTimes[i]} untuk \$batchName dimulai 5 menit lagi. Siapkan pakan.',
+          '⏰ Persiapan Jadwal Pakan — $batchName',
+          'Jadwal pakan pukul ${feedingTimes[i]} untuk $batchName dimulai 5 menit lagi. Siapkan pakan.',
           scheduledFeed,
           platformChannelSpecifics,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -121,11 +121,11 @@ class NotificationService {
               .collection('users')
               .doc(user.uid)
               .collection('jadwal_notifikasi')
-              .doc('feed_\$notifId')
+              .doc('feed_$notifId')
               .set({
             'id': notifId,
-            'judul': '⏰ Persiapan Jadwal Pakan — \$batchName',
-            'isi': 'Jadwal pakan pukul \${feedingTimes[i]} untuk \$batchName dimulai 5 menit lagi. Siapkan pakan.',
+            'judul': '⏰ Persiapan Jadwal Pakan — $batchName',
+            'isi': 'Jadwal pakan pukul ${feedingTimes[i]} untuk $batchName dimulai 5 menit lagi. Siapkan pakan.',
             'jam': hour,
             'menit': minute,
             'namaKolam': batchName,
