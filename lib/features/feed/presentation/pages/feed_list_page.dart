@@ -261,7 +261,7 @@ class FeedListPage extends ConsumerWidget {
                                   children: [
                                     const Text('Estimasi Bulan Ini', style: TextStyle(color: Colors.white60, fontSize: 12), overflow: TextOverflow.ellipsis),
                                     const SizedBox(height: 4),
-                                    Text(currencyFormatter.format(stats.costThisMonth), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                    Text(currencyFormatter.format(stats.estimatedCostThisMonth), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),

@@ -97,6 +97,7 @@ class FeedStats {
   final double costToday;
   final double costThisWeek;
   final double costThisMonth;
+  final double estimatedCostThisMonth;
 
   FeedStats({
     required this.totalPakanPagiToday,
@@ -108,6 +109,7 @@ class FeedStats {
     required this.costToday,
     required this.costThisWeek,
     required this.costThisMonth,
+    required this.estimatedCostThisMonth,
   });
 }
 
@@ -177,7 +179,8 @@ final feedStatsProvider = Provider<FeedStats>((ref) {
     totalPakanThisMonth: totalPakanThisMonth,
     costToday: costToday,
     costThisWeek: costThisWeek,
-    costThisMonth: totalEstimasiBulanIni, // Gunakan estimasi aktual
+    costThisMonth: costThisMonth, 
+    estimatedCostThisMonth: totalEstimasiBulanIni,
   );
 });
 
