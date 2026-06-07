@@ -115,10 +115,48 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
     final txsToRevert = transactions.where((t) => t.referenceId == referenceId).toList();
     if (txsToRevert.isEmpty) return;
 
-    final stocks = state.value ?? [];
+    final stocks = await _repository.getAllFeedStocks();
     for (final tx in txsToRevert) {
-      final existingStock = stocks.firstWhere((s) => s.id == tx.feedStockId, orElse: () => throw Exception('Stock not found'));
+      final existingStock = stocks.where((s) => s.id == tx.feedStockId).firstOrNull;
 
+      if (existingStock != null) {
+        double newCurrentStockKg = existingStock.currentStockKg;
+        double newAveragePrice = existingStock.averagePricePerKg;
+
+        if (tx.transactionType == 'buy') {
+          newCurrentStockKg -= tx.amountKg;
+          if (newCurrentStockKg < 0) newCurrentStockKg = 0;
+          
+          final totalValue = (existingStock.currentStockKg * existingStock.averagePricePerKg) - (tx.amountKg * tx.pricePerKg);
+          if (newCurrentStockKg > 0) {
+            newAveragePrice = totalValue / newCurrentStockKg;
+            if (newAveragePrice < 0) newAveragePrice = existingStock.averagePricePerKg; 
+          } else {
+            newAveragePrice = existingStock.averagePricePerKg;
+          }
+        } else if (tx.transactionType == 'use') {
+          newCurrentStockKg += tx.amountKg;
+        }
+
+        final newStock = existingStock.copyWith(
+          currentStockKg: newCurrentStockKg,
+          averagePricePerKg: newAveragePrice,
+        );
+        await _repository.upsertFeedStock(newStock);
+      }
+      await _repository.deleteTransaction(tx.id);
+    }
+    
+    state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
+    ref.invalidate(feedStockTransactionsProvider);
+  }
+
+  // Method for manual deletion from History UI (Cleanup orphaned transactions)
+  Future<void> deleteTransactionDirectly(FeedStockTransaction tx) async {
+    final stocks = await _repository.getAllFeedStocks();
+    final existingStock = stocks.where((s) => s.id == tx.feedStockId).firstOrNull;
+
+    if (existingStock != null) {
       double newCurrentStockKg = existingStock.currentStockKg;
       double newAveragePrice = existingStock.averagePricePerKg;
 
@@ -142,8 +180,8 @@ class FeedStockNotifier extends AsyncNotifier<List<FeedStock>> {
         averagePricePerKg: newAveragePrice,
       );
       await _repository.upsertFeedStock(newStock);
-      await _repository.deleteTransaction(tx.id);
     }
+    await _repository.deleteTransaction(tx.id);
     
     state = await AsyncValue.guard(() => _repository.getAllFeedStocks());
     ref.invalidate(feedStockTransactionsProvider);
