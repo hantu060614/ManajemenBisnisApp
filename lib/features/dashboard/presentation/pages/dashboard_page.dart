@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
@@ -50,10 +51,14 @@ class DashboardPage extends ConsumerWidget {
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: Colors.white24,
-                    backgroundImage: authState.photoUrl != null && (authState.photoUrl!.startsWith('http') || File(authState.photoUrl!).existsSync())
-                        ? (authState.photoUrl!.startsWith('http') ? NetworkImage(authState.photoUrl!) : FileImage(File(authState.photoUrl!))) as ImageProvider
+                    backgroundImage: authState.photoUrl != null 
+                        ? (authState.photoUrl!.startsWith('http') 
+                            ? NetworkImage(authState.photoUrl!) as ImageProvider
+                            : authState.photoUrl!.startsWith('data:image') 
+                                ? MemoryImage(base64Decode(authState.photoUrl!.split(',').last)) as ImageProvider
+                                : FileImage(File(authState.photoUrl!)))
                         : null,
-                    child: (authState.photoUrl == null || (!authState.photoUrl!.startsWith('http') && !File(authState.photoUrl!).existsSync())) 
+                    child: (authState.photoUrl == null || (!authState.photoUrl!.startsWith('http') && !authState.photoUrl!.startsWith('data:image') && !File(authState.photoUrl!).existsSync())) 
                         ? const Icon(Icons.person, size: 20, color: Colors.white) 
                         : null,
                   ),

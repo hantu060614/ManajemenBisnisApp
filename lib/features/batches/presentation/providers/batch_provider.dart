@@ -8,6 +8,8 @@ import '../../../health/data/repositories/health_repository.dart';
 import '../../../cashflow/data/repositories/cashflow_repository.dart';
 import '../../../cashflow/domain/models/cashflow.dart';
 import 'package:uuid/uuid.dart';
+import '../../../feed/presentation/providers/feed_provider.dart';
+import '../../../health/presentation/providers/health_provider.dart';
 
 final batchRepositoryProvider = Provider<BatchRepository>((ref) {
   return BatchRepository();
@@ -67,6 +69,20 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
   Future<void> deleteBatch(String id) async {
     try {
       await _repository.deleteBatch(id);
+      
+      // Cascade delete Feed Logs
+      final feedRepo = FeedRepository();
+      final feedLogs = await feedRepo.getAllFeedLogs();
+      for (final log in feedLogs.where((l) => l.batchId == id)) {
+        await ref.read(feedProvider.notifier).deleteFeedLog(log);
+      }
+
+      // Cascade delete Health Logs
+      final healthRepo = HealthRepository();
+      final healthLogs = await healthRepo.getAllHealthLogs();
+      for (final log in healthLogs.where((l) => l.batchId == id)) {
+        await ref.read(healthProvider.notifier).deleteHealthLog(log);
+      }
     } catch (e) {
       // throw error
     }

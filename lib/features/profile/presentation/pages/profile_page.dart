@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -165,12 +166,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   CircleAvatar(
                     radius: 60,
                     backgroundColor: AppColors.primaryLight.withOpacity(0.3),
-                    backgroundImage: authState.photoUrl != null && authState.photoUrl!.startsWith('http')
-                        ? CachedNetworkImageProvider(authState.photoUrl!)
+                    backgroundImage: authState.photoUrl != null 
+                        ? (authState.photoUrl!.startsWith('http') 
+                            ? CachedNetworkImageProvider(authState.photoUrl!) as ImageProvider
+                            : authState.photoUrl!.startsWith('data:image') 
+                                ? MemoryImage(base64Decode(authState.photoUrl!.split(',').last)) as ImageProvider
+                                : null)
                         : null,
                     child: authState.isLoading
                         ? const CircularProgressIndicator()
-                        : (authState.photoUrl == null || !authState.photoUrl!.startsWith('http')) 
+                        : (authState.photoUrl == null || (!authState.photoUrl!.startsWith('http') && !authState.photoUrl!.startsWith('data:image'))) 
                             ? const Icon(Icons.person, size: 60, color: AppColors.primary) 
                             : null,
                   ),

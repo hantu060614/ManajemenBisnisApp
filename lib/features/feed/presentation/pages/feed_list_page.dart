@@ -390,7 +390,7 @@ class FeedListPage extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const SizedBox(height: 4),
-                              Text('Jenis: ${log.feedType} • ${formatWeight(log.amountKg)} Kg (${formatWeight(log.amountOns)} Ons)'),
+                              Text('Jenis: ${log.feedType} • ${formatWeight(log.amountKg)} Kg (${formatWeight(log.amountGram)} Gram)'),
                               const SizedBox(height: 2),
                               Text(
                                 'Biaya: ${currencyFormatter.format(totalCost)}',

@@ -5,6 +5,9 @@ import '../../domain/models/feed_stock.dart';
 import '../../domain/models/feed_stock_transaction.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../../cashflow/presentation/providers/cashflow_provider.dart';
+import './feed_provider.dart';
+import '../../data/repositories/feed_repository.dart';
 
 final feedStockRepositoryProvider = Provider<FeedStockRepository>((ref) {
   return FeedStockRepository();
@@ -92,10 +95,15 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
     
     final existingStock = stocks.firstWhere((s) => s.id == feedStockId, orElse: () => throw Exception('Stock not found'));
     
-    final newTotalStock = existingStock.currentStockKg - amountKg;
+    double newTotalStock = existingStock.currentStockKg - amountKg;
+    
+    // Clean up floating point inaccuracies and very small remainders (less than 10 grams)
+    if (newTotalStock < 0.01) {
+      newTotalStock = 0.0;
+    }
     
     final newStock = existingStock.copyWith(
-      currentStockKg: newTotalStock < 0 ? 0 : newTotalStock,
+      currentStockKg: newTotalStock,
     );
 
     // Save stock
@@ -146,13 +154,30 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
           newCurrentStockKg += tx.amountKg;
         }
 
+        // Clean up floating point inaccuracies
+        if (newCurrentStockKg < 0.01) {
+          newCurrentStockKg = 0.0;
+        }
+
         final newStock = existingStock.copyWith(
           currentStockKg: newCurrentStockKg,
           averagePricePerKg: newAveragePrice,
         );
-        await _repository.upsertFeedStock(newStock);
+        
+        await _repository.deleteTransaction(tx.id);
+        
+        // Check if there are any other transactions left for this stock
+        final remainingTxs = await _repository.getAllTransactions();
+        final stockTxs = remainingTxs.where((t) => t.feedStockId == existingStock.id).toList();
+        
+        if (stockTxs.isEmpty) {
+          await _repository.deleteFeedStock(existingStock.id);
+        } else {
+          await _repository.upsertFeedStock(newStock);
+        }
+      } else {
+        await _repository.deleteTransaction(tx.id);
       }
-      await _repository.deleteTransaction(tx.id);
     }
     // Refresh state tidak diperlukan karena Stream otomatis update
     ref.invalidate(feedStockTransactionsProvider);
@@ -160,37 +185,23 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
 
   // Method for manual deletion from History UI (Cleanup orphaned transactions)
   Future<void> deleteTransactionDirectly(FeedStockTransaction tx) async {
-    final stocks = await _repository.getAllFeedStocks();
-    final existingStock = stocks.where((s) => s.id == tx.feedStockId).firstOrNull;
-
-    if (existingStock != null) {
-      double newCurrentStockKg = existingStock.currentStockKg;
-      double newAveragePrice = existingStock.averagePricePerKg;
-
-      if (tx.transactionType == 'buy') {
-        newCurrentStockKg -= tx.amountKg;
-        if (newCurrentStockKg < 0) newCurrentStockKg = 0;
-        
-        final totalValue = (existingStock.currentStockKg * existingStock.averagePricePerKg) - (tx.amountKg * tx.pricePerKg);
-        if (newCurrentStockKg > 0) {
-          newAveragePrice = totalValue / newCurrentStockKg;
-          if (newAveragePrice < 0) newAveragePrice = existingStock.averagePricePerKg; 
-        } else {
-          newAveragePrice = existingStock.averagePricePerKg;
-        }
-      } else if (tx.transactionType == 'use') {
-        newCurrentStockKg += tx.amountKg;
+    if (tx.transactionType == 'buy' && tx.referenceId != null) {
+      // Just delete the cashflow, which will cascade and call revertStockTransaction automatically
+      await ref.read(cashflowProvider.notifier).deleteCashflow(tx.referenceId!);
+      return;
+    } else if (tx.transactionType == 'use' && tx.referenceId != null) {
+      // Find the FeedLog and delete it, which will cascade
+      final feedRepo = FeedRepository();
+      final logs = await feedRepo.getAllFeedLogs();
+      final log = logs.where((l) => l.id == tx.referenceId).firstOrNull;
+      if (log != null) {
+        await ref.read(feedProvider.notifier).deleteFeedLog(log);
       }
-
-      final newStock = existingStock.copyWith(
-        currentStockKg: newCurrentStockKg,
-        averagePricePerKg: newAveragePrice,
-      );
-      await _repository.upsertFeedStock(newStock);
+      return;
     }
-    await _repository.deleteTransaction(tx.id);
-    // Refresh state tidak diperlukan karena Stream otomatis update
-    ref.invalidate(feedStockTransactionsProvider);
+    
+    // Fallback if no referenceId
+    await revertStockTransaction(tx.referenceId ?? tx.id);
   }
 }
 

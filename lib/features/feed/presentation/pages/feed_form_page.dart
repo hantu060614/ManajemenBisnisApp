@@ -187,13 +187,23 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
         return;
       }
 
-      final amountKg = double.parse(_amountKgController.text);
-      if (widget.existingFeedLog == null && amountKg > _availableStockKg) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Stok pakan tidak mencukupi. Stok tersisa hanya $_availableStockKg Kg. Silakan catat pembelian pakan baru terlebih dahulu.')),
-        );
-        return;
+      double amountKg = double.parse(_amountKgController.text);
+      const double epsilon = 0.001;
+      bool isSnapped = false;
+
+      if (widget.existingFeedLog == null) {
+        if ((amountKg - _availableStockKg).abs() <= epsilon) {
+          amountKg = _availableStockKg; // snap ke nilai persis
+          isSnapped = true;
+        } else if (amountKg > _availableStockKg + epsilon) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Stok pakan tidak mencukupi. Stok tersisa hanya ${_availableStockKg.toStringAsFixed(2)} Kg. Silakan catat pembelian pakan baru terlebih dahulu.')),
+          );
+          return;
+        }
       }
+
+      final double finalAmountKg = isSnapped ? amountKg : double.parse(amountKg.toStringAsFixed(3));
 
       setState(() => _isLoading = true);
 
@@ -204,7 +214,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
           batchName: _selectedBatchName!,
           date: _selectedDate,
           feedType: _selectedFeedType ?? '',
-          amountKg: amountKg,
+          amountKg: finalAmountKg,
           amountOns: double.parse(_amountOnsController.text),
           amountGram: double.parse(_amountGramController.text),
           pricePerKg: double.parse(_priceController.text.replaceAll('.', '')),

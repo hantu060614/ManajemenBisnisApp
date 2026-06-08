@@ -5,6 +5,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 
 class NotificationService {
@@ -15,10 +16,6 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    tz.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
-
     const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
     
     // For iOS if needed
@@ -78,13 +75,14 @@ class NotificationService {
       android: androidPlatformChannelSpecifics,
     );
 
-    final now = tz.TZDateTime.now(tz.local);
+    final jakarta = tz.getLocation('Asia/Jakarta');
+    final nowJakarta = tz.TZDateTime.now(jakarta);
 
     int notifId = 0;
     
     // Schedule Cek Kesehatan
-    var scheduledHealth = tz.TZDateTime(tz.local, now.year, now.month, now.day, 7);
-    if (scheduledHealth.isBefore(now)) scheduledHealth = scheduledHealth.add(const Duration(days: 1));
+    var scheduledHealth = tz.TZDateTime(jakarta, nowJakarta.year, nowJakarta.month, nowJakarta.day, 7);
+    if (scheduledHealth.isBefore(nowJakarta)) scheduledHealth = scheduledHealth.add(const Duration(days: 1));
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       notifId++,
       '🩺 Cek Kesehatan Ternak',
@@ -101,14 +99,26 @@ class NotificationService {
       if (parts.length == 2) {
         final hour = int.tryParse(parts[0]) ?? 8;
         final minute = int.tryParse(parts[1]) ?? 0;
-        var scheduledFeed = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute).subtract(const Duration(minutes: 5));
-        if (scheduledFeed.isBefore(now)) scheduledFeed = scheduledFeed.add(const Duration(days: 1));
+        
+        final tz.TZDateTime scheduledTime = tz.TZDateTime(
+          jakarta,
+          nowJakarta.year, nowJakarta.month, nowJakarta.day,
+          hour, minute,
+        );
+        
+        tz.TZDateTime finalReminderTime = scheduledTime.subtract(const Duration(minutes: 10));
+        
+        if (finalReminderTime.isBefore(nowJakarta)) {
+          finalReminderTime = finalReminderTime.add(const Duration(days: 1));
+        }
+
+        debugPrint('[Notif] Scheduled: $scheduledTime | Reminder: $finalReminderTime | Now: $nowJakarta');
         
         await _flutterLocalNotificationsPlugin.zonedSchedule(
           notifId++,
           '⏰ Persiapan Jadwal Pakan — $batchName',
-          'Jadwal pakan pukul ${feedingTimes[i]} untuk $batchName dimulai 5 menit lagi. Siapkan pakan.',
-          scheduledFeed,
+          'Jadwal pakan pukul ${feedingTimes[i]} untuk $batchName dimulai 10 menit lagi. Siapkan pakan.',
+          finalReminderTime,
           platformChannelSpecifics,
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           matchDateTimeComponents: DateTimeComponents.time,

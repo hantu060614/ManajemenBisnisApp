@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'dart:async';
+import 'dart:convert';
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   return AuthNotifier();
 });
@@ -173,29 +174,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final user = FirebaseAuth.instance.currentUser!;
       
-      // Compress image
+      // Compress image heavily so it fits well within Firestore limits (usually under 50KB)
       final compressedData = await FlutterImageCompress.compressWithFile(
         localPath,
-        minWidth: 800,
-        minHeight: 800,
-        quality: 85,
+        minWidth: 400,
+        minHeight: 400,
+        quality: 70,
       );
 
       if (compressedData == null) throw 'Gagal mengompresi gambar.';
 
-      // Upload to Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref().child('profiles/${user.uid}/avatar.jpg');
-      
-      final uploadTask = storageRef.putData(
-        compressedData,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-      
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
+      // Convert to Base64 string directly to avoid needing Firebase Storage
+      final base64String = base64Encode(compressedData);
+      final downloadUrl = 'data:image/jpeg;base64,$base64String';
 
-      // Save to Firestore and Auth
-      await user.updatePhotoURL(downloadUrl);
+      // Save to Firestore ONLY (skip Auth to prevent Photo URL too long error)
+      // await user.updatePhotoURL(downloadUrl);
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'photoURL': downloadUrl,
       }, SetOptions(merge: true));
@@ -205,13 +199,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
     } catch (e) {
-      String errorMessage = 'Gagal mengunggah foto profil.';
+      String errorMessage = 'Gagal menyimpan foto profil.';
       if (e is FirebaseException) {
-        if (e.code == 'unauthorized') {
-          errorMessage = 'Gagal: Akses ditolak. Cek Firebase Storage Rules.';
-        } else {
-          errorMessage = 'Gagal: ${e.message}';
-        }
+        errorMessage = 'Gagal: ${e.message}';
       } else {
         errorMessage = 'Gagal: ${e.toString()}';
       }
