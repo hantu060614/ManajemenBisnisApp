@@ -388,7 +388,7 @@ class _FeedFormPageState extends ConsumerState<FeedFormPage> {
                 // Jenis Pakan (Dropdown dari Stok)
                 feedStocksAsync.when(
                   data: (stocks) {
-                    final availableStocks = stocks.where((s) => s.currentStockKg > 0).toList();
+                    final availableStocks = stocks.where((s) => s.currentStockKg > 0 && s.feedType != '-1' && s.feedType.trim().isNotEmpty).toList();
                     
                     if (availableStocks.isEmpty && widget.existingFeedLog == null) {
                       return Container(

@@ -5,6 +5,7 @@ class Cashflow {
   final String category;
   final String? description;
   final DateTime date;
+  final String? referenceId;
   final bool synced;
 
   Cashflow({
@@ -14,6 +15,7 @@ class Cashflow {
     required this.category,
     this.description,
     required this.date,
+    this.referenceId,
     this.synced = false,
   });
 
@@ -25,6 +27,7 @@ class Cashflow {
       'category': category,
       'description': description,
       'date': date.toIso8601String(),
+      'referenceId': referenceId,
       'synced': synced ? 1 : 0,
     };
   }
@@ -33,11 +36,12 @@ class Cashflow {
     return Cashflow(
       id: map['id'] as String,
       type: map['type'] as String,
-      amount: map['amount'] as double,
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       category: map['category'] as String,
       description: map['description'] as String?,
       date: DateTime.parse(map['date'] as String),
-      synced: (map['synced'] as int) == 1,
+      referenceId: map['referenceId'] as String?,
+      synced: (map['synced'] as int? ?? 0) == 1,
     );
   }
 }

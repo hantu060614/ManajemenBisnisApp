@@ -34,7 +34,15 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
   }
 
   Future<void> addOrUpdateStockFromPurchase(String feedType, double amountKg, double totalPrice, String cashflowId, DateTime date) async {
-    final stocks = state.value ?? [];
+    final stocks = await _repository.getAllFeedStocks();
+    // Deterministic sorting to always prioritize the absolute oldest entry for duplicates
+    stocks.sort((a, b) {
+      int cmp = a.createdAt.compareTo(b.createdAt);
+      if (cmp == 0) {
+        cmp = a.id.compareTo(b.id);
+      }
+      return cmp;
+    });
     
     // Find existing stock by feed type (case insensitive matching)
     FeedStock? existingStock;
@@ -67,6 +75,7 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
         currentStockKg: amountKg,
         averagePricePerKg: pricePerKg,
         lastRestockDate: date,
+        createdAt: DateTime.now(),
       );
     }
 
@@ -91,7 +100,7 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
   }
 
   Future<void> deductStockFromUsage(String feedStockId, double amountKg, double pricePerKg, String feedLogId, DateTime date) async {
-    final stocks = state.value ?? [];
+    final stocks = await _repository.getAllFeedStocks();
     
     final existingStock = stocks.firstWhere((s) => s.id == feedStockId, orElse: () => throw Exception('Stock not found'));
     
@@ -168,7 +177,8 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
         
         // Check if there are any other transactions left for this stock
         final remainingTxs = await _repository.getAllTransactions();
-        final stockTxs = remainingTxs.where((t) => t.feedStockId == existingStock.id).toList();
+        // Cek sisa transaksi dan secara lokal ABAIKAN transaksi yang baru saja kita minta Firebase hapus
+        final stockTxs = remainingTxs.where((t) => t.feedStockId == existingStock.id && t.id != tx.id).toList();
         
         if (stockTxs.isEmpty) {
           await _repository.deleteFeedStock(existingStock.id);
@@ -202,6 +212,16 @@ class FeedStockNotifier extends StreamNotifier<List<FeedStock>> {
     
     // Fallback if no referenceId
     await revertStockTransaction(tx.referenceId ?? tx.id);
+  }
+
+  Future<void> deleteFeedStockAndTransactions(String feedStockId) async {
+    final remainingTxs = await _repository.getAllTransactions();
+    final stockTxs = remainingTxs.where((t) => t.feedStockId == feedStockId).toList();
+    for (var tx in stockTxs) {
+      await _repository.deleteTransaction(tx.id);
+    }
+    await _repository.deleteFeedStock(feedStockId);
+    ref.invalidate(feedStockTransactionsProvider);
   }
 }
 

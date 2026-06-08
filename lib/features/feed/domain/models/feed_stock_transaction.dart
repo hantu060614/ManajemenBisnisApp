@@ -40,12 +40,12 @@ class FeedStockTransaction {
       id: map['id'] as String,
       feedStockId: map['feedStockId'] as String,
       transactionType: map['transactionType'] as String,
-      amountKg: map['amountKg'] as double,
-      pricePerKg: map['pricePerKg'] as double,
-      totalPrice: map['totalPrice'] as double,
+      amountKg: (map['amountKg'] as num?)?.toDouble() ?? 0.0,
+      pricePerKg: (map['pricePerKg'] as num?)?.toDouble() ?? 0.0,
+      totalPrice: (map['totalPrice'] as num?)?.toDouble() ?? 0.0,
       date: DateTime.parse(map['date'] as String),
       referenceId: map['referenceId'] as String,
-      synced: (map['synced'] as int) == 1,
+      synced: (map['synced'] as int? ?? 0) == 1,
     );
   }
 }

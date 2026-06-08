@@ -57,7 +57,7 @@ class FeedListPage extends ConsumerWidget {
                     const SizedBox(height: 8),
                     feedStocksAsync.when(
                       data: (stocks) {
-                        final availableStocks = stocks.where((s) => s.currentStockKg > 0).toList();
+                        final availableStocks = stocks.where((s) => s.currentStockKg > 0 && s.feedType != '-1' && s.feedType.trim().isNotEmpty).toList();
                         if (availableStocks.isEmpty) {
                           return Container(
                             padding: const EdgeInsets.all(16),
@@ -92,10 +92,30 @@ class FeedListPage extends ConsumerWidget {
                             itemCount: availableStocks.length,
                             itemBuilder: (context, index) {
                               final stock = availableStocks[index];
-                              return Container(
-                                width: 160,
-                                margin: const EdgeInsets.only(right: 12),
-                                padding: const EdgeInsets.all(12),
+                              return GestureDetector(
+                                onLongPress: () {
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('Hapus Stok Pakan'),
+                                      content: Text('Apakah Anda yakin ingin menghapus stok pakan ${stock.feedType} beserta riwayat transaksinya?'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+                                        TextButton(
+                                          onPressed: () {
+                                            ref.read(feedStockProvider.notifier).deleteFeedStockAndTransactions(stock.id);
+                                            Navigator.pop(ctx);
+                                          },
+                                          child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  width: 160,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context).colorScheme.surface,
                                   borderRadius: BorderRadius.circular(16),
@@ -141,6 +161,7 @@ class FeedListPage extends ConsumerWidget {
                                     ),
                                   ],
                                 ),
+                              ),
                               );
                             },
                           ),

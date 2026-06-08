@@ -5,6 +5,7 @@ import '../../domain/models/feed_log.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
 import './feed_stock_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../features/dashboard/data/repositories/dashboard_stats_repository.dart';
 
 final feedRepositoryProvider = Provider<FeedRepository>((ref) {
   return FeedRepository();
@@ -27,6 +28,7 @@ class FeedNotifier extends StreamNotifier<List<FeedLog>> {
         .doc(authState.userId)
         .collection('feed_logs')
         .orderBy('date', descending: true)
+        .limit(50)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => FeedLog.fromMap(doc.data())).toList());
   }
@@ -47,6 +49,13 @@ class FeedNotifier extends StreamNotifier<List<FeedLog>> {
         );
       }
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
+      
+      final statsRepo = DashboardStatsRepository();
+      await statsRepo.updateFeedOutStats(
+        amountKg: log.amountKg,
+        logDate: log.date,
+        isDelete: false,
+      );
     } catch (e) {
       // throw error
     }
@@ -68,6 +77,33 @@ class FeedNotifier extends StreamNotifier<List<FeedLog>> {
           log.date,
         );
       }
+      // Fetch old log for correct revert
+      final oldDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .collection('feed_logs')
+          .doc(log.id)
+          .get();
+
+      if (oldDocs.exists) {
+        final oldLog = FeedLog.fromMap(oldDocs.data()!);
+        final statsRepo = DashboardStatsRepository();
+        
+        // Revert old
+        await statsRepo.updateFeedOutStats(
+          amountKg: oldLog.amountKg,
+          logDate: oldLog.date,
+          isDelete: true,
+        );
+        
+        // Apply new
+        await statsRepo.updateFeedOutStats(
+          amountKg: log.amountKg,
+          logDate: log.date,
+          isDelete: false,
+        );
+      }
+
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);
     } catch (e) {
       // throw error
@@ -76,6 +112,23 @@ class FeedNotifier extends StreamNotifier<List<FeedLog>> {
 
   Future<void> deleteFeedLog(FeedLog log) async {
     try {
+      final oldDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .collection('feed_logs')
+          .doc(log.id)
+          .get();
+
+      if (oldDocs.exists) {
+        final oldLog = FeedLog.fromMap(oldDocs.data()!);
+        final statsRepo = DashboardStatsRepository();
+        await statsRepo.updateFeedOutStats(
+          amountKg: oldLog.amountKg,
+          logDate: oldLog.date,
+          isDelete: true,
+        );
+      }
+
       await _repository.deleteFeedLog(log.id);
       await ref.read(feedStockProvider.notifier).revertStockTransaction(log.id);
       await ref.read(batchProvider.notifier).recalculateBatchPopulation(log.batchId);

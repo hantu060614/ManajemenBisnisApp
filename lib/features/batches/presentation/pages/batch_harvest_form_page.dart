@@ -134,6 +134,7 @@ class _BatchHarvestFormPageState extends ConsumerState<BatchHarvestFormPage> {
           category: 'Panen',
           description: desc,
           date: DateTime.now(),
+          referenceId: widget.batch.id,
         );
         
         await ref.read(cashflowProvider.notifier).addCashflow(cashflow);

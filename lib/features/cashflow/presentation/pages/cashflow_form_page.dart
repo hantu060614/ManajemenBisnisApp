@@ -129,6 +129,7 @@ class _CashflowFormPageState extends ConsumerState<CashflowFormPage> {
           category: _selectedCategory,
           description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
           date: _selectedDate,
+          referenceId: null,
         );
 
         if (widget.existingCashflow == null) {

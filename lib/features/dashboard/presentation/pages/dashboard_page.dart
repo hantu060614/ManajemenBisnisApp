@@ -8,6 +8,9 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/activity_assistant_provider.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
+import '../../../cashflow/data/repositories/cashflow_repository.dart';
+import '../../../feed/data/repositories/feed_repository.dart';
+import '../../../batches/data/repositories/batch_repository.dart';
 
 class DashboardPage extends ConsumerWidget {
   const DashboardPage({super.key});
@@ -106,6 +109,68 @@ class DashboardPage extends ConsumerWidget {
             // Content
             dashboardAsyncValue.when(
               data: (data) {
+                if (data == null || !data.isMigrated) {
+                  return SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.cloud_sync, size: 64, color: Colors.blue),
+                          const SizedBox(height: 16),
+                          const Text(
+                            "Optimasi Database Diperlukan",
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Kami telah meningkatkan sistem agar aplikasi lebih cepat dan anti-lag. Klik tombol di bawah untuk menyinkronkan data lama Anda ke sistem baru.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 24),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                            ),
+                            onPressed: () async {
+                              showDialog(
+                                context: context, 
+                                barrierDismissible: false, 
+                                builder: (_) => const Center(child: CircularProgressIndicator())
+                              );
+                              try {
+                                final cashflowRepo = CashflowRepository();
+                                final feedRepo = FeedRepository();
+                                final batchRepo = BatchRepository();
+                                
+                                final cashflows = await cashflowRepo.getAllCashflow();
+                                final feedLogs = await feedRepo.getAllFeedLogs();
+                                final batches = await batchRepo.getAllBatches();
+                                
+                                final statsRepo = ref.read(dashboardStatsRepositoryProvider);
+                                await statsRepo.migrateLegacyData(
+                                  cashflows: cashflows,
+                                  batches: batches,
+                                  feedLogs: feedLogs,
+                                );
+                                if (context.mounted) Navigator.pop(context); // close dialog
+                              } catch (e) {
+                                if (context.mounted) {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                }
+                              }
+                            },
+                            child: const Text("Mulai Sinkronisasi", style: TextStyle(color: Colors.white)),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
                 final monthlyProfit = data.incomeThisMonth - data.expenseThisMonth;
 
                 return SliverToBoxAdapter(

@@ -44,12 +44,12 @@ class Batch {
       name: map['name'] as String,
       animalCategory: map['animalCategory'] as String? ?? 'Lainnya',
       animalType: map['animalType'] as String,
-      initialCount: map['initialCount'] as int,
-      currentCount: map['currentCount'] as int,
+      initialCount: map['initialCount'] as int? ?? 0,
+      currentCount: map['currentCount'] as int? ?? 0,
       startDate: DateTime.parse(map['startDate'] as String),
       initialCapital: (map['initialCapital'] as num?)?.toDouble() ?? 0.0,
-      isActive: (map['isActive'] as int) == 1,
-      synced: (map['synced'] as int) == 1,
+      isActive: (map['isActive'] as int? ?? 1) == 1, // default 1 (true) for active
+      synced: (map['synced'] as int? ?? 0) == 1,
     );
   }
 }

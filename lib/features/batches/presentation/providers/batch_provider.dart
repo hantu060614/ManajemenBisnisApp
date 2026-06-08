@@ -7,9 +7,11 @@ import '../../../feed/data/repositories/feed_repository.dart';
 import '../../../health/data/repositories/health_repository.dart';
 import '../../../cashflow/data/repositories/cashflow_repository.dart';
 import '../../../cashflow/domain/models/cashflow.dart';
+import '../../../cashflow/presentation/providers/cashflow_provider.dart';
 import 'package:uuid/uuid.dart';
 import '../../../feed/presentation/providers/feed_provider.dart';
 import '../../../health/presentation/providers/health_provider.dart';
+import '../../../../features/dashboard/data/repositories/dashboard_stats_repository.dart';
 
 final batchRepositoryProvider = Provider<BatchRepository>((ref) {
   return BatchRepository();
@@ -33,6 +35,8 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
         .collection('users')
         .doc(authState.userId)
         .collection('batches')
+        .orderBy('startDate', descending: true)
+        .limit(20)
         .snapshots()
         .map((snapshot) => snapshot.docs.map((doc) => Batch.fromMap(doc.data())).toList());
   }
@@ -40,6 +44,11 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
   Future<void> addBatch(Batch batch) async {
     try {
       await _repository.insertBatch(batch);
+      
+      if (batch.isActive) {
+        final statsRepo = DashboardStatsRepository();
+        await statsRepo.updateBatchStats(activeDelta: 1, animalsDelta: batch.currentCount);
+      }
       
       if (batch.initialCapital > 0) {
         final cashflowRepo = CashflowRepository();
@@ -50,6 +59,7 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
           category: 'Modal',
           description: 'Modal awal unit ternak: ${batch.name}',
           date: DateTime.now(),
+          referenceId: batch.id,
         );
         await cashflowRepo.insertCashflow(cashflow);
       }
@@ -60,6 +70,35 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
 
   Future<void> updateBatch(Batch batch) async {
     try {
+      final oldDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .collection('batches')
+          .doc(batch.id)
+          .get();
+
+      if (oldDocs.exists) {
+        final oldBatch = Batch.fromMap(oldDocs.data()!);
+        
+        int activeDelta = 0;
+        int animalsDelta = 0;
+
+        if (oldBatch.isActive && !batch.isActive) {
+          activeDelta = -1;
+          animalsDelta = -oldBatch.currentCount;
+        } else if (!oldBatch.isActive && batch.isActive) {
+          activeDelta = 1;
+          animalsDelta = batch.currentCount;
+        } else if (oldBatch.isActive && batch.isActive) {
+          animalsDelta = batch.currentCount - oldBatch.currentCount;
+        }
+
+        if (activeDelta != 0 || animalsDelta != 0) {
+          final statsRepo = DashboardStatsRepository();
+          await statsRepo.updateBatchStats(activeDelta: activeDelta, animalsDelta: animalsDelta);
+        }
+      }
+
       await _repository.updateBatch(batch);
     } catch (e) {
       // throw error
@@ -68,6 +107,21 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
 
   Future<void> deleteBatch(String id) async {
     try {
+      final oldDocs = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .collection('batches')
+          .doc(id)
+          .get();
+
+      if (oldDocs.exists) {
+        final oldBatch = Batch.fromMap(oldDocs.data()!);
+        if (oldBatch.isActive) {
+          final statsRepo = DashboardStatsRepository();
+          await statsRepo.updateBatchStats(activeDelta: -1, animalsDelta: -oldBatch.currentCount);
+        }
+      }
+
       await _repository.deleteBatch(id);
       
       // Cascade delete Feed Logs
@@ -82,6 +136,16 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
       final healthLogs = await healthRepo.getAllHealthLogs();
       for (final log in healthLogs.where((l) => l.batchId == id)) {
         await ref.read(healthProvider.notifier).deleteHealthLog(log);
+      }
+
+      // Cascade delete Cashflows (Modal Awal & Panen)
+      final cashflowRepo = CashflowRepository();
+      final cashflows = await cashflowRepo.getAllCashflow();
+
+      for (final c in cashflows) {
+        if (c.referenceId == id) {
+          await ref.read(cashflowProvider.notifier).deleteCashflow(c.id);
+        }
       }
     } catch (e) {
       // throw error
@@ -125,6 +189,15 @@ class BatchNotifier extends StreamNotifier<List<Batch>> {
           isActive: batch.isActive,
           synced: batch.synced,
         );
+
+        if (batch.isActive) {
+          final animalsDelta = newCount - batch.currentCount;
+          if (animalsDelta != 0) {
+            final statsRepo = DashboardStatsRepository();
+            await statsRepo.updateBatchStats(activeDelta: 0, animalsDelta: animalsDelta);
+          }
+        }
+
         await _repository.updateBatch(updatedBatch);
       }
     } catch (e) {
