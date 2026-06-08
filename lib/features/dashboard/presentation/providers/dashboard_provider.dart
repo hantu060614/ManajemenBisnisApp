@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../domain/models/dashboard_stats.dart';
-import '../data/repositories/dashboard_stats_repository.dart';
+import '../../domain/models/dashboard_stats.dart';
+import '../../data/repositories/dashboard_stats_repository.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 final dashboardStatsRepositoryProvider = Provider<DashboardStatsRepository>((ref) {

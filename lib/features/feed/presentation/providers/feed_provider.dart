@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../data/repositories/feed_repository.dart';
 import '../../domain/models/feed_log.dart';
 import '../../../batches/presentation/providers/batch_provider.dart';
